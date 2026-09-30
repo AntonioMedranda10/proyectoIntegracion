@@ -1,0 +1,16 @@
+# PostgreSQL SOLO para desarrollo local (reemplaza a L4 mientras no esté disponible).
+services:
+  postgres:
+    image: postgres:17
+    container_name: ecommerce-postgres-dev
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB: ecommerce_dev
+    ports:
+      - '5434:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
