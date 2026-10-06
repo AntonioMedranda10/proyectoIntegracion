@@ -106,11 +106,22 @@ export class FilesService {
       file.originalname,
     );
 
+    // L5 exige una clave compartida en la cabecera x-api-key (si está configurada).
+    const apiKey = this.config.get<string>('FILES_API_KEY');
+    const headers: Record<string, string> = apiKey
+      ? { 'x-api-key': apiKey }
+      : {};
+
     let response: Response;
     try {
       response = await fetch(
         this.filesUrl + this.config.get<string>('FILES_UPLOAD_PATH', '/upload'),
-        { method: 'POST', body: form, signal: AbortSignal.timeout(10000) },
+        {
+          method: 'POST',
+          body: form,
+          headers,
+          signal: AbortSignal.timeout(10000),
+        },
       );
     } catch (error) {
       this.logger.error(
@@ -118,6 +129,12 @@ export class FilesService {
       );
       throw new ServiceUnavailableException(
         'El servidor de archivos no está disponible',
+      );
+    }
+    if (response.status === 401 || response.status === 403) {
+      this.logger.error('L5 rechazó la clave: revisa FILES_API_KEY en el .env');
+      throw new BadGatewayException(
+        'El servidor de archivos rechazó la clave de acceso',
       );
     }
     if (!response.ok) {

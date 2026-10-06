@@ -45,6 +45,7 @@ curl http://localhost:3002/api/health
 | `FILES_MODE` | `local` = guarda imágenes en `./uploads` (sin L5) · `remote` = las envía a L5. |
 | `FILES_URL` | URL del servidor de archivos, ej. `http://192.168.10.15`. |
 | `FILES_UPLOAD_PATH` | Ruta de subida en L5 (por defecto `/upload`). |
+| `FILES_API_KEY` | Clave que L5 exige en la cabecera `x-api-key`. Vacía = no se envía. |
 
 ## 5. Día de la prueba (checklist)
 
@@ -69,7 +70,7 @@ curl http://localhost:3002/api/health
 6. Ejecuta `npm run start:instancias` y abre `http://<IP de L1>/api/health` varias veces: debe alternar entre `backend-1` y `backend-2`.
 
 ## 6. Contrato esperado con L5 (servidor de archivos)
-- `POST {FILES_URL}/upload` con `multipart/form-data`, campo **`file`**.
+- `POST {FILES_URL}/upload` con `multipart/form-data`, campo **`file`** y cabecera **`x-api-key`** (valor de `FILES_API_KEY`).
 - Respuesta JSON: `{ "storage_key": "abc.png", "url": "/files/abc.png" }` (también acepta `key` o `filename`; si falta `url` se usa `/files/<clave>`).
 - L1 debe enrutar `/files/` hacia L5 para que el navegador vea las imágenes.
 
