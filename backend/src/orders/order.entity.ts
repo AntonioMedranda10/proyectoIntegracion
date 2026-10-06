@@ -48,6 +48,7 @@ export class OrderItem {
   id: number;
 
   @ManyToOne(() => Order, (order) => order.items, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'order_id' })
   order: Relation<Order>;
 
   // Si el producto se elimina, el pedido conserva el nombre y precio de la compra.
