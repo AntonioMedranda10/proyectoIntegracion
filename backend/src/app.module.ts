@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { AuthModule } from './auth/auth.module.js';
 import { CatalogModule } from './catalog/catalog.module.js';
+import { DB_SCHEMAS } from './common/db-schemas.js';
 import { FilesModule } from './files/files.module.js';
 import { HealthModule } from './health/health.module.js';
 import { MessagesModule } from './messages/messages.module.js';
@@ -25,11 +27,23 @@ import { UsersModule } from './users/users.module.js';
         password: config.get('DB_PASSWORD', ''),
         database: config.get('DB_NAME', 'ecommerce_dev'),
         autoLoadEntities: true,
-        // Solo una instancia debe crear/actualizar las tablas para evitar choques al arrancar las dos.
-        synchronize: config.get('DB_SYNC') === 'true',
+        // La sincronización se hace en dataSourceFactory, después de crear los schemas.
+        synchronize: false,
         retryAttempts: 5,
         retryDelay: 3000,
       }),
+      dataSourceFactory: async (options) => {
+        const dataSource = await new DataSource(options!).initialize();
+        // Solo una instancia debe crear/actualizar la estructura para evitar choques al arrancar las dos.
+        if (process.env.DB_SYNC === 'true') {
+          // TypeORM crea tablas pero no schemas: se crean antes de sincronizar.
+          for (const schema of DB_SCHEMAS) {
+            await dataSource.query(`CREATE SCHEMA IF NOT EXISTS ${schema}`);
+          }
+          await dataSource.synchronize();
+        }
+        return dataSource;
+      },
     }),
     AuthModule,
     UsersModule,

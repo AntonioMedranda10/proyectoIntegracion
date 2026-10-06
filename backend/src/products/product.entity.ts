@@ -7,7 +7,7 @@ import {
 } from 'typeorm';
 import { numericTransformer } from '../common/numeric.transformer.js';
 
-@Entity('products')
+@Entity({ name: 'products', schema: 'catalog' })
 export class Product {
   @PrimaryGeneratedColumn()
   id: number;

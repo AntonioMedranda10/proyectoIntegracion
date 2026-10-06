@@ -10,13 +10,19 @@ import {
 } from 'typeorm';
 import { numericTransformer } from '../common/numeric.transformer.js';
 import { Product } from '../products/product.entity.js';
+import { User } from '../users/user.entity.js';
 
 export type OrderStatus = 'pending' | 'paid' | 'cancelled';
 
-@Entity('orders')
+@Entity({ name: 'orders', schema: 'sales' })
 export class Order {
   @PrimaryGeneratedColumn()
   id: number;
+
+  // Un usuario con pedidos no puede borrarse: los pedidos son historial de ventas.
+  @ManyToOne(() => User, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'user_id' })
+  user: Relation<User>;
 
   @Column({ name: 'user_id' })
   userId: number;
@@ -42,12 +48,15 @@ export class Order {
   createdAt: Date;
 }
 
-@Entity('order_items')
+@Entity({ name: 'order_items', schema: 'sales' })
 export class OrderItem {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Order, (order) => order.items, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Order, (order) => order.items, {
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'order_id' })
   order: Relation<Order>;
 

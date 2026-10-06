@@ -2,11 +2,15 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
+  type Relation,
 } from 'typeorm';
+import { User } from '../users/user.entity.js';
 
 /** Metadatos de un archivo guardado en el servidor de archivos (L5). */
-@Entity('files')
+@Entity({ name: 'files', schema: 'storage' })
 export class FileRecord {
   @PrimaryGeneratedColumn()
   id: number;
@@ -26,12 +30,19 @@ export class FileRecord {
   @Column()
   size: number;
 
-  /** Objeto del dominio al que pertenece, por ejemplo 'product'. */
+  /**
+   * Objeto del dominio al que pertenece (por ejemplo 'product').
+   * Es una referencia genérica, por eso no tiene llave foránea.
+   */
   @Column({ name: 'owner_type', length: 30 })
   ownerType: string;
 
   @Column({ name: 'owner_id' })
   ownerId: number;
+
+  @ManyToOne(() => User, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'uploaded_by' })
+  uploader: Relation<User>;
 
   @Column({ name: 'uploaded_by' })
   uploadedBy: number;

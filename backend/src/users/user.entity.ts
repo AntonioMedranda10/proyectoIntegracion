@@ -7,7 +7,7 @@ import {
 
 export type Role = 'customer' | 'admin';
 
-@Entity('users')
+@Entity({ name: 'users', schema: 'auth' })
 export class User {
   @PrimaryGeneratedColumn()
   id: number;

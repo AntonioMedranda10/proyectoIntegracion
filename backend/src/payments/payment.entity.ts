@@ -2,19 +2,33 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
+  type Relation,
 } from 'typeorm';
 import { numericTransformer } from '../common/numeric.transformer.js';
+import { Order } from '../orders/order.entity.js';
+import { User } from '../users/user.entity.js';
 
 export type PaymentMethod = 'card' | 'cash' | 'transfer';
 
-@Entity('payments')
+@Entity({ name: 'payments', schema: 'sales' })
 export class Payment {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'order_id' })
+  // Cada pedido se paga una sola vez (relación 1 a 0..1).
+  @ManyToOne(() => Order, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'order_id' })
+  order: Relation<Order>;
+
+  @Column({ name: 'order_id', unique: true })
   orderId: number;
+
+  @ManyToOne(() => User, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'user_id' })
+  user: Relation<User>;
 
   @Column({ name: 'user_id' })
   userId: number;

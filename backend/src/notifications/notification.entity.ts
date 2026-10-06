@@ -2,13 +2,21 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
+  type Relation,
 } from 'typeorm';
+import { User } from '../users/user.entity.js';
 
-@Entity('notifications')
+@Entity({ name: 'notifications', schema: 'messaging' })
 export class Notification {
   @PrimaryGeneratedColumn()
   id: number;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id' })
+  user: Relation<User>;
 
   @Column({ name: 'user_id' })
   userId: number;
