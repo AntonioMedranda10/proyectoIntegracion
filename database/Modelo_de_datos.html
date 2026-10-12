@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Modelo de datos – E-commerce 5 nodos</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1b2430; --quiet:#5b6675; --line:#d9dee5; --tint:#eef1f5;
+          --accent:#1f5fbf; --accent-soft:#e6eefb; --priv:#8a3b12; --priv-bg:#fbeee4; --pub:#17633a; --pub-bg:#e3f4ea; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 "Segoe UI", system-ui, -apple-system, Arial, sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 32px 16px 64px; }
+  header.top { border-bottom: 3px solid var(--accent); padding-bottom: 20px; margin-bottom: 28px; }
+  h1 { font-size: 28px; line-height: 1.2; margin: 0 0 6px; }
+  h2 { font-size: 21px; margin: 44px 0 12px; padding-top: 8px; border-top: 1px solid var(--line); }
+  h3 { font-size: 18px; margin: 0 0 8px; display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+  h4 { font-size: 15px; margin: 0 0 4px; }
+  p { margin: 0 0 12px; }
+  .sub { color: var(--quiet); margin: 0; }
+  code { font-family: Consolas, "Cascadia Mono", monospace; font-size: .92em; }
+  .stats { display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; margin: 20px 0 0; }
+  .stat { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; }
+  .stat b { display:block; font-size:26px; line-height:1.1; color:var(--accent); }
+  .stat span { color:var(--quiet); font-size:14px; }
+  nav { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 16px; margin: 24px 0 0; font-size:15px; }
+  nav a { color:var(--accent); text-decoration:none; margin-right:14px; white-space:nowrap; }
+  nav a:hover { text-decoration: underline; }
+  .card, .schema { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px; margin: 0 0 20px; }
+  .schema { border-left: 5px solid var(--accent); }
+  .stitle { font-weight:600; }
+  .why { color: var(--ink); }
+  .meta { color: var(--quiet); font-size: 14.5px; }
+  .badge { font-size:12.5px; font-weight:600; padding:2px 10px; border-radius:999px; }
+  .badge.priv { color:var(--priv); background:var(--priv-bg); }
+  .badge.pub { color:var(--pub); background:var(--pub-bg); }
+  .table { border-top:1px dashed var(--line); padding-top:14px; margin-top:14px; }
+  .table p { color:var(--quiet); font-size:15px; margin-bottom:8px; }
+  .scroll { overflow-x:auto; }
+  table { width:100%; border-collapse: collapse; font-size:14.5px; }
+  th { text-align:left; background:var(--tint); padding:7px 10px; border-bottom:2px solid var(--line); white-space:nowrap; }
+  td { padding:6px 10px; border-bottom:1px solid var(--line); vertical-align: top; }
+  td.ty { font-family: Consolas, monospace; font-size: 13.5px; color: var(--quiet); white-space:nowrap; }
+  .k { font-size:11.5px; font-weight:700; padding:1px 6px; border-radius:4px; border:1px solid; }
+  .k-PK { color:#7a5a00; background:#fff6d6; border-color:#e6cf7a; }
+  .k-FK { color:var(--accent); background:var(--accent-soft); border-color:#b9cff0; }
+  .k-UQ { color:#5b2a86; background:#f1e8fa; border-color:#d3bdea; }
+  pre { background:#1b2430; color:#e8edf3; padding:14px 16px; border-radius:10px; overflow-x:auto; font-size:13.5px; line-height:1.5; margin:0 0 14px; }
+  .diagram { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; overflow-x:auto; }
+  .diagram svg { display:block; width:100%; min-width:680px; height:auto; }
+  svg text { font-family: "Segoe UI", system-ui, Arial, sans-serif; fill: var(--ink); }
+  svg .zone { fill: var(--tint); stroke: var(--line); }
+  svg .zname { font-size:13px; font-weight:700; }
+  svg .box { fill:#fff; stroke:#8b96a5; stroke-width:1.25; }
+  svg .box.hub { fill: var(--accent-soft); stroke: var(--accent); stroke-width:2; }
+  svg .rule { stroke: var(--line); } svg .hubrule { stroke: var(--accent); }
+  svg .tname { font-size:13px; font-weight:700; }
+  svg .col.key { font-weight:700; }
+  svg .quiet { fill: var(--quiet); }
+  svg .rel path { fill:none; stroke:#6b7685; stroke-width:1.25; } svg .mk { fill:#6b7685; }
+  .note { background:var(--accent-soft); border-left:4px solid var(--accent); padding:10px 14px; border-radius:6px; font-size:15px; }
+  footer { color:var(--quiet); font-size:14px; margin-top:40px; border-top:1px solid var(--line); padding-top:14px; }
+  @media (max-width: 640px) { .stats { grid-template-columns: repeat(2, 1fr); } h1 { font-size:23px; } }
+  @media print { body { background:#fff; } nav { display:none; } .schema, .card, .diagram { break-inside: avoid; } pre { white-space: pre-wrap; } }
+</style>
+</head>
+<body>
+<main>
+<header class="top">
+  <h1>Modelo de datos por schemas</h1>
+  <p class="sub">E-commerce en arquitectura de 5 nodos · Nodo L4 (PostgreSQL 18) · Base <code>Proyecto_Integrador</code></p>
+  <div class="stats">
+    <div class="stat"><b>6</b><span>schemas</span></div>
+    <div class="stat"><b>10</b><span>tablas</span></div>
+    <div class="stat"><b>10</b><span>llaves foráneas</span></div>
+    <div class="stat"><b>0</b><span>tablas en public</span></div>
+  </div>
+  <nav>
+    <a href="#resumen">Resumen</a><a href="#diagrama">Diagrama</a><a href="#auth">auth</a><a href="#catalog">catalog</a><a href="#sales">sales</a><a href="#storage">storage</a><a href="#messaging">messaging</a><a href="#audit">audit</a><a href="#relaciones">Relaciones</a><a href="#permisos">Permisos</a><a href="#consultas">Consultas</a>
+  </nav>
+</header>
+
+<h2 id="resumen">1. Resumen</h2>
+<p>La base de datos se organiza en <strong>6 schemas</strong>, uno por área de responsabilidad del negocio, en lugar de dejar todas las tablas en <code>public</code>. Cada schema corresponde a los módulos del backend (L3) que lo gestionan, de modo que la capa de datos refleja la arquitectura lógica del sistema.</p>
+<div class="card"><div class="scroll"><table>
+  <thead><tr><th>Schema</th><th>Responsabilidad</th><th>Tablas</th><th>Acceso</th></tr></thead>
+  <tbody>
+  <tr><td><a href="#auth"><code>auth</code></a></td><td>Identidad y acceso</td><td><code>users</code></td><td><span class="badge priv">Privado</span></td></tr><tr><td><a href="#catalog"><code>catalog</code></a></td><td>Catálogo de la tienda</td><td><code>categories</code>, <code>products</code></td><td><span class="badge pub">Lectura pública</span></td></tr><tr><td><a href="#sales"><code>sales</code></a></td><td>Operación comercial</td><td><code>orders</code>, <code>order_items</code>, <code>payments</code></td><td><span class="badge priv">Privado</span></td></tr><tr><td><a href="#storage"><code>storage</code></a></td><td>Archivos</td><td><code>files</code></td><td><span class="badge priv">Privado</span></td></tr><tr><td><a href="#messaging"><code>messaging</code></a></td><td>Comunicación con el cliente</td><td><code>notifications</code>, <code>messages</code></td><td><span class="badge priv">Privado</span></td></tr><tr><td><a href="#audit"><code>audit</code></a></td><td>Auditoría</td><td><code>activity_log</code></td><td><span class="badge priv">Privado</span></td></tr>
+  <tr><td><code>public</code></td><td>Sin uso</td><td>ninguna</td><td><span class="badge priv">Sin acceso general</span></td></tr>
+  </tbody>
+</table></div></div>
+<p class="note">Solo el backend se conecta a la base, con el usuario de aplicación <code>ecommerce_app</code>. No se usa el administrador <code>postgres</code>. El frontend nunca accede a la base: consume la API a través de NGINX.</p>
+
+<h2 id="diagrama">2. Diagrama entidad–relación</h2>
+<p>Cada recuadro sombreado es un schema. <code>auth.users</code> es el centro del modelo: 6 de las 10 llaves foráneas apuntan a ella.</p>
+<div class="diagram"><svg viewBox="0 44 760 946" role="img" aria-label="Diagrama entidad-relación" font-size="11.5">
+<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="mk"/></marker></defs><rect x="24" y="60" width="712" height="204" rx="10" class="zone"/><text x="40" y="81" class="zname">sales</text><rect x="24" y="304" width="224" height="252" rx="10" class="zone"/><text x="40" y="325" class="zname">storage</text><rect x="268" y="304" width="224" height="188" rx="10" class="zone"/><text x="284" y="325" class="zname">auth</text><rect x="512" y="304" width="224" height="368" rx="10" class="zone"/><text x="528" y="325" class="zname">catalog</text><rect x="24" y="712" width="224" height="220" rx="10" class="zone"/><text x="40" y="733" class="zname">audit</text><rect x="268" y="712" width="468" height="172" rx="10" class="zone"/><text x="284" y="733" class="zname">messaging</text><g class="rel"><path d="M420 216V336" marker-end="url(#arr)"/><path d="M176 248V284H370V336" marker-end="url(#arr)"/><path d="M232 132H284" marker-end="url(#arr)"/><path d="M528 148H476" marker-end="url(#arr)"/><path d="M624 232V336" marker-end="url(#arr)"/><path d="M624 524V548" marker-end="url(#arr)"/><path d="M232 376H284" marker-end="url(#arr)"/><path d="M232 784H258V440H284" marker-end="url(#arr)"/><path d="M370 744V476" marker-end="url(#arr)"/><path d="M624 744V692H420V476" marker-end="url(#arr)"/></g><text x="258" y="124" text-anchor="middle" class="quiet">0..1</text><rect x="40" y="92" width="192" height="156" rx="8" class="box"/><line x1="40" x2="232" y1="122" y2="122" class="rule"/><text x="52" y="113" class="tname">payments</text><text x="52" y="140" class="col key">PK id · serial</text><text x="52" y="156" class="col key">FK UQ order_id · integer</text><text x="52" y="172" class="col key">FK user_id · integer</text><text x="52" y="188" class="col">amount · numeric(12,2)</text><text x="52" y="204" class="col">method · varchar(20)</text><text x="52" y="220" class="col">status · varchar(20)</text><text x="52" y="236" class="col">created_at · timestamptz</text><rect x="284" y="92" width="192" height="124" rx="8" class="box"/><line x1="284" x2="476" y1="122" y2="122" class="rule"/><text x="296" y="113" class="tname">orders</text><text x="296" y="140" class="col key">PK id · serial</text><text x="296" y="156" class="col key">FK user_id · integer</text><text x="296" y="172" class="col">status · varchar(20)</text><text x="296" y="188" class="col">total · numeric(12,2)</text><text x="296" y="204" class="col">created_at · timestamptz</text><rect x="528" y="92" width="192" height="140" rx="8" class="box"/><line x1="528" x2="720" y1="122" y2="122" class="rule"/><text x="540" y="113" class="tname">order_items</text><text x="540" y="140" class="col key">PK id · serial</text><text x="540" y="156" class="col key">FK order_id · integer</text><text x="540" y="172" class="col key">FK product_id · integer</text><text x="540" y="188" class="col">product_name · varchar</text><text x="540" y="204" class="col">unit_price · numeric(10,2)</text><text x="540" y="220" class="col">quantity · integer</text><rect x="40" y="336" width="192" height="204" rx="8" class="box"/><line x1="40" x2="232" y1="366" y2="366" class="rule"/><text x="52" y="357" class="tname">files</text><text x="52" y="384" class="col key">PK id · serial</text><text x="52" y="400" class="col">storage_key · varchar</text><text x="52" y="416" class="col">url · varchar</text><text x="52" y="432" class="col">original_name · varchar</text><text x="52" y="448" class="col">mime_type · varchar</text><text x="52" y="464" class="col">size · integer</text><text x="52" y="480" class="col">owner_type · varchar(30)</text><text x="52" y="496" class="col">owner_id · integer</text><text x="52" y="512" class="col key">FK uploaded_by · integer</text><text x="52" y="528" class="col">created_at · timestamptz</text><rect x="284" y="336" width="192" height="140" rx="8" class="box hub"/><line x1="284" x2="476" y1="366" y2="366" class="rule hubrule"/><text x="296" y="357" class="tname">users</text><text x="296" y="384" class="col key">PK id · serial</text><text x="296" y="400" class="col">name · varchar(100)</text><text x="296" y="416" class="col key">UQ email · varchar(150)</text><text x="296" y="432" class="col">password_hash · varchar</text><text x="296" y="448" class="col">role · varchar(20)</text><text x="296" y="464" class="col">created_at · timestamptz</text><rect x="528" y="336" width="192" height="188" rx="8" class="box"/><line x1="528" x2="720" y1="366" y2="366" class="rule"/><text x="540" y="357" class="tname">products</text><text x="540" y="384" class="col key">PK id · serial</text><text x="540" y="400" class="col">name · varchar(120)</text><text x="540" y="416" class="col">description · text</text><text x="540" y="432" class="col">price · numeric(10,2)</text><text x="540" y="448" class="col">stock · integer</text><text x="540" y="464" class="col">image_url · varchar</text><text x="540" y="480" class="col key">FK category_id · integer</text><text x="540" y="496" class="col">created_at · timestamptz</text><text x="540" y="512" class="col">updated_at · timestamptz</text><rect x="528" y="548" width="192" height="108" rx="8" class="box"/><line x1="528" x2="720" y1="578" y2="578" class="rule"/><text x="540" y="569" class="tname">categories</text><text x="540" y="596" class="col key">PK id · serial</text><text x="540" y="612" class="col key">UQ name · varchar(80)</text><text x="540" y="628" class="col">description · text</text><text x="540" y="644" class="col">created_at · timestamptz</text><rect x="40" y="744" width="192" height="172" rx="8" class="box"/><line x1="40" x2="232" y1="774" y2="774" class="rule"/><text x="52" y="765" class="tname">activity_log</text><text x="52" y="792" class="col key">PK id · serial</text><text x="52" y="808" class="col key">FK user_id · integer</text><text x="52" y="824" class="col">method · varchar(10)</text><text x="52" y="840" class="col">path · varchar(255)</text><text x="52" y="856" class="col">status_code · integer</text><text x="52" y="872" class="col">instance · varchar(50)</text><text x="52" y="888" class="col">ip_address · varchar(64)</text><text x="52" y="904" class="col">created_at · timestamptz</text><rect x="284" y="744" width="192" height="124" rx="8" class="box"/><line x1="284" x2="476" y1="774" y2="774" class="rule"/><text x="296" y="765" class="tname">notifications</text><text x="296" y="792" class="col key">PK id · serial</text><text x="296" y="808" class="col key">FK user_id · integer</text><text x="296" y="824" class="col">message · varchar</text><text x="296" y="840" class="col">read · boolean</text><text x="296" y="856" class="col">created_at · timestamptz</text><rect x="528" y="744" width="192" height="124" rx="8" class="box"/><line x1="528" x2="720" y1="774" y2="774" class="rule"/><text x="540" y="765" class="tname">messages</text><text x="540" y="792" class="col key">PK id · serial</text><text x="540" y="808" class="col key">FK user_id · integer</text><text x="540" y="824" class="col">subject · varchar(150)</text><text x="540" y="840" class="col">content · text</text><text x="540" y="856" class="col">created_at · timestamptz</text><text x="24" y="956" class="quiet">Cada flecha va de la llave foránea (lado N) a la clave primaria que referencia (lado 1).</text><text x="24" y="974" class="quiet">PK clave primaria · FK llave foránea · UQ valor único · 0..1: un pedido tiene como máximo un pago.</text></svg></div>
+
+<h2 id="schemas">3. Schemas y tablas</h2>
+
+<section class="schema" id="auth">
+  <h3><code>auth</code> <span class="stitle">Identidad y acceso</span> <span class="badge priv">Privado</span></h3>
+  <p class="why">Concentra los datos más sensibles del sistema: contraseñas cifradas y roles. Al estar separado se puede restringir quién lo lee y protegerlo con permisos propios, sin afectar al resto.</p>
+  <p class="meta">Módulos del backend que lo usan: <strong>auth, users</strong> · Tablas: <strong>1</strong></p>
+  
+  <div class="table">
+    <h4><code>auth.users</code></h4>
+    <p>Clientes y administradores de la tienda.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Columna</th><th>Tipo</th><th>Clave</th><th>Qué guarda</th></tr></thead>
+      <tbody><tr><td><code>id</code></td><td class="ty">serial</td><td><span class="k k-PK">PK</span></td><td>Identificador del usuario</td></tr><tr><td><code>name</code></td><td class="ty">varchar(100)</td><td></td><td>Nombre completo</td></tr><tr><td><code>email</code></td><td class="ty">varchar(150)</td><td><span class="k k-UQ">UQ</span></td><td>Correo con el que inicia sesión. No se repite</td></tr><tr><td><code>password_hash</code></td><td class="ty">varchar</td><td></td><td>Contraseña cifrada con bcrypt. Nunca se guarda en texto plano</td></tr><tr><td><code>role</code></td><td class="ty">varchar(20)</td><td></td><td>Rol: 'customer' (cliente) o 'admin'. Por defecto 'customer'</td></tr><tr><td><code>created_at</code></td><td class="ty">timestamptz</td><td></td><td>Fecha de registro</td></tr></tbody>
+    </table></div>
+  </div>
+</section>
+<section class="schema" id="catalog">
+  <h3><code>catalog</code> <span class="stitle">Catálogo de la tienda</span> <span class="badge pub">Lectura pública</span></h3>
+  <p class="why">Es la información más consultada y la única que se muestra sin iniciar sesión. Cambia por gestión del administrador, no por las compras. Por eso es el único schema que admite un usuario de solo lectura.</p>
+  <p class="meta">Módulos del backend que lo usan: <strong>products, catalog</strong> · Tablas: <strong>2</strong></p>
+  
+  <div class="table">
+    <h4><code>catalog.categories</code></h4>
+    <p>Categorías que agrupan los productos (Electrónica, Hogar, Ropa, Deportes...).</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Columna</th><th>Tipo</th><th>Clave</th><th>Qué guarda</th></tr></thead>
+      <tbody><tr><td><code>id</code></td><td class="ty">serial</td><td><span class="k k-PK">PK</span></td><td>Identificador de la categoría</td></tr><tr><td><code>name</code></td><td class="ty">varchar(80)</td><td><span class="k k-UQ">UQ</span></td><td>Nombre de la categoría. No se repite</td></tr><tr><td><code>description</code></td><td class="ty">text</td><td></td><td>Descripción opcional</td></tr><tr><td><code>created_at</code></td><td class="ty">timestamptz</td><td></td><td>Fecha de creación</td></tr></tbody>
+    </table></div>
+  </div>
+  <div class="table">
+    <h4><code>catalog.products</code></h4>
+    <p>Productos en venta, con precio, stock e imagen.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Columna</th><th>Tipo</th><th>Clave</th><th>Qué guarda</th></tr></thead>
+      <tbody><tr><td><code>id</code></td><td class="ty">serial</td><td><span class="k k-PK">PK</span></td><td>Identificador del producto</td></tr><tr><td><code>name</code></td><td class="ty">varchar(120)</td><td></td><td>Nombre del producto</td></tr><tr><td><code>description</code></td><td class="ty">text</td><td></td><td>Descripción opcional</td></tr><tr><td><code>price</code></td><td class="ty">numeric(10,2)</td><td></td><td>Precio de venta</td></tr><tr><td><code>stock</code></td><td class="ty">integer</td><td></td><td>Unidades disponibles. Baja al crear un pedido</td></tr><tr><td><code>image_url</code></td><td class="ty">varchar</td><td></td><td>Ruta de la imagen guardada en el servidor de archivos (L5)</td></tr><tr><td><code>category_id</code></td><td class="ty">integer</td><td><span class="k k-FK">FK</span></td><td>Categoría del producto (opcional) → catalog.categories</td></tr><tr><td><code>created_at</code></td><td class="ty">timestamptz</td><td></td><td>Fecha de creación</td></tr><tr><td><code>updated_at</code></td><td class="ty">timestamptz</td><td></td><td>Fecha de la última modificación</td></tr></tbody>
+    </table></div>
+  </div>
+</section>
+<section class="schema" id="sales">
+  <h3><code>sales</code> <span class="stitle">Operación comercial</span> <span class="badge priv">Privado</span></h3>
+  <p class="why">Agrupa las transacciones del negocio. Un pedido, su detalle y su pago se crean y validan juntos, por eso comparten schema. Es el historial de ventas: no debe perderse ni modificarse desde fuera.</p>
+  <p class="meta">Módulos del backend que lo usan: <strong>orders, payments</strong> · Tablas: <strong>3</strong></p>
+  
+  <div class="table">
+    <h4><code>sales.orders</code></h4>
+    <p>Pedidos realizados por los usuarios.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Columna</th><th>Tipo</th><th>Clave</th><th>Qué guarda</th></tr></thead>
+      <tbody><tr><td><code>id</code></td><td class="ty">serial</td><td><span class="k k-PK">PK</span></td><td>Número de pedido</td></tr><tr><td><code>user_id</code></td><td class="ty">integer</td><td><span class="k k-FK">FK</span></td><td>Usuario que hizo el pedido → auth.users</td></tr><tr><td><code>status</code></td><td class="ty">varchar(20)</td><td></td><td>Estado: 'pending', 'paid' o 'cancelled'. Por defecto 'pending'</td></tr><tr><td><code>total</code></td><td class="ty">numeric(12,2)</td><td></td><td>Total del pedido</td></tr><tr><td><code>created_at</code></td><td class="ty">timestamptz</td><td></td><td>Fecha del pedido</td></tr></tbody>
+    </table></div>
+  </div>
+  <div class="table">
+    <h4><code>sales.order_items</code></h4>
+    <p>Productos incluidos en cada pedido.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Columna</th><th>Tipo</th><th>Clave</th><th>Qué guarda</th></tr></thead>
+      <tbody><tr><td><code>id</code></td><td class="ty">serial</td><td><span class="k k-PK">PK</span></td><td>Identificador de la línea</td></tr><tr><td><code>order_id</code></td><td class="ty">integer</td><td><span class="k k-FK">FK</span></td><td>Pedido al que pertenece → sales.orders</td></tr><tr><td><code>product_id</code></td><td class="ty">integer</td><td><span class="k k-FK">FK</span></td><td>Producto comprado → catalog.products (queda vacío si el producto se elimina)</td></tr><tr><td><code>product_name</code></td><td class="ty">varchar</td><td></td><td>Copia del nombre al momento de la compra</td></tr><tr><td><code>unit_price</code></td><td class="ty">numeric(10,2)</td><td></td><td>Copia del precio al momento de la compra</td></tr><tr><td><code>quantity</code></td><td class="ty">integer</td><td></td><td>Cantidad comprada</td></tr></tbody>
+    </table></div>
+  </div>
+  <div class="table">
+    <h4><code>sales.payments</code></h4>
+    <p>Pago de cada pedido. Un pedido tiene como máximo un pago.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Columna</th><th>Tipo</th><th>Clave</th><th>Qué guarda</th></tr></thead>
+      <tbody><tr><td><code>id</code></td><td class="ty">serial</td><td><span class="k k-PK">PK</span></td><td>Identificador del pago</td></tr><tr><td><code>order_id</code></td><td class="ty">integer</td><td><span class="k k-FK">FK</span> <span class="k k-UQ">UQ</span></td><td>Pedido pagado → sales.orders. Único: un pago por pedido</td></tr><tr><td><code>user_id</code></td><td class="ty">integer</td><td><span class="k k-FK">FK</span></td><td>Usuario que pagó → auth.users</td></tr><tr><td><code>amount</code></td><td class="ty">numeric(12,2)</td><td></td><td>Monto pagado</td></tr><tr><td><code>method</code></td><td class="ty">varchar(20)</td><td></td><td>Método: 'card', 'cash' o 'transfer'</td></tr><tr><td><code>status</code></td><td class="ty">varchar(20)</td><td></td><td>Estado del pago. Por defecto 'approved'</td></tr><tr><td><code>created_at</code></td><td class="ty">timestamptz</td><td></td><td>Fecha del pago</td></tr></tbody>
+    </table></div>
+  </div>
+</section>
+<section class="schema" id="storage">
+  <h3><code>storage</code> <span class="stitle">Archivos</span> <span class="badge priv">Privado</span></h3>
+  <p class="why">El archivo físico vive en el servidor de archivos (L5); aquí solo queda su registro. Separarlo hace visible la frontera entre la base de datos y el almacenamiento externo.</p>
+  <p class="meta">Módulos del backend que lo usan: <strong>files</strong> · Tablas: <strong>1</strong></p>
+  
+  <div class="table">
+    <h4><code>storage.files</code></h4>
+    <p>Registro de cada archivo almacenado en L5.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Columna</th><th>Tipo</th><th>Clave</th><th>Qué guarda</th></tr></thead>
+      <tbody><tr><td><code>id</code></td><td class="ty">serial</td><td><span class="k k-PK">PK</span></td><td>Identificador del registro</td></tr><tr><td><code>storage_key</code></td><td class="ty">varchar</td><td></td><td>Clave que devuelve L5 al guardar el archivo</td></tr><tr><td><code>url</code></td><td class="ty">varchar</td><td></td><td>Ruta para ver el archivo</td></tr><tr><td><code>original_name</code></td><td class="ty">varchar</td><td></td><td>Nombre original del archivo</td></tr><tr><td><code>mime_type</code></td><td class="ty">varchar</td><td></td><td>Tipo de archivo (image/png, image/jpeg...)</td></tr><tr><td><code>size</code></td><td class="ty">integer</td><td></td><td>Tamaño en bytes</td></tr><tr><td><code>owner_type</code></td><td class="ty">varchar(30)</td><td></td><td>A qué pertenece el archivo, por ejemplo 'product'</td></tr><tr><td><code>owner_id</code></td><td class="ty">integer</td><td></td><td>Identificador de ese dueño (referencia genérica, sin llave foránea)</td></tr><tr><td><code>uploaded_by</code></td><td class="ty">integer</td><td><span class="k k-FK">FK</span></td><td>Usuario que lo subió → auth.users</td></tr><tr><td><code>created_at</code></td><td class="ty">timestamptz</td><td></td><td>Fecha de subida</td></tr></tbody>
+    </table></div>
+  </div>
+</section>
+<section class="schema" id="messaging">
+  <h3><code>messaging</code> <span class="stitle">Comunicación con el cliente</span> <span class="badge priv">Privado</span></h3>
+  <p class="why">Son datos de interacción, de alto volumen y bajo valor transaccional. Pueden limpiarse o archivarse sin afectar las ventas ni el catálogo.</p>
+  <p class="meta">Módulos del backend que lo usan: <strong>notifications, messages</strong> · Tablas: <strong>2</strong></p>
+  
+  <div class="table">
+    <h4><code>messaging.notifications</code></h4>
+    <p>Avisos que el sistema genera para el usuario.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Columna</th><th>Tipo</th><th>Clave</th><th>Qué guarda</th></tr></thead>
+      <tbody><tr><td><code>id</code></td><td class="ty">serial</td><td><span class="k k-PK">PK</span></td><td>Identificador del aviso</td></tr><tr><td><code>user_id</code></td><td class="ty">integer</td><td><span class="k k-FK">FK</span></td><td>Usuario que lo recibe → auth.users</td></tr><tr><td><code>message</code></td><td class="ty">varchar</td><td></td><td>Texto del aviso (pedido registrado, pago aprobado...)</td></tr><tr><td><code>read</code></td><td class="ty">boolean</td><td></td><td>Si el usuario ya lo leyó. Por defecto false</td></tr><tr><td><code>created_at</code></td><td class="ty">timestamptz</td><td></td><td>Fecha del aviso</td></tr></tbody>
+    </table></div>
+  </div>
+  <div class="table">
+    <h4><code>messaging.messages</code></h4>
+    <p>Mensajes que los clientes envían a la tienda.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Columna</th><th>Tipo</th><th>Clave</th><th>Qué guarda</th></tr></thead>
+      <tbody><tr><td><code>id</code></td><td class="ty">serial</td><td><span class="k k-PK">PK</span></td><td>Identificador del mensaje</td></tr><tr><td><code>user_id</code></td><td class="ty">integer</td><td><span class="k k-FK">FK</span></td><td>Usuario que lo envió → auth.users</td></tr><tr><td><code>subject</code></td><td class="ty">varchar(150)</td><td></td><td>Asunto</td></tr><tr><td><code>content</code></td><td class="ty">text</td><td></td><td>Contenido del mensaje</td></tr><tr><td><code>created_at</code></td><td class="ty">timestamptz</td><td></td><td>Fecha de envío</td></tr></tbody>
+    </table></div>
+  </div>
+</section>
+<section class="schema" id="audit">
+  <h3><code>audit</code> <span class="stitle">Auditoría</span> <span class="badge priv">Privado</span></h3>
+  <p class="why">Guarda el rastro de quién modificó qué. Separado del resto para que solo se pueda insertar y consultar, y para poder revisar la actividad sin tocar los datos del negocio.</p>
+  <p class="meta">Módulos del backend que lo usan: <strong>audit (interceptor global)</strong> · Tablas: <strong>1</strong></p>
+  
+  <div class="table">
+    <h4><code>audit.activity_log</code></h4>
+    <p>Una fila por cada operación que modifica datos (crear, editar, borrar).</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Columna</th><th>Tipo</th><th>Clave</th><th>Qué guarda</th></tr></thead>
+      <tbody><tr><td><code>id</code></td><td class="ty">serial</td><td><span class="k k-PK">PK</span></td><td>Identificador del registro</td></tr><tr><td><code>user_id</code></td><td class="ty">integer</td><td><span class="k k-FK">FK</span></td><td>Usuario que hizo la operación → auth.users (vacío en registro y login)</td></tr><tr><td><code>method</code></td><td class="ty">varchar(10)</td><td></td><td>Tipo de operación: POST, PATCH o DELETE</td></tr><tr><td><code>path</code></td><td class="ty">varchar(255)</td><td></td><td>Ruta de la API utilizada</td></tr><tr><td><code>status_code</code></td><td class="ty">integer</td><td></td><td>Resultado: 201 creado, 400 rechazado, 500 error...</td></tr><tr><td><code>instance</code></td><td class="ty">varchar(50)</td><td></td><td>Instancia del backend que atendió: backend-1 o backend-2</td></tr><tr><td><code>ip_address</code></td><td class="ty">varchar(64)</td><td></td><td>Dirección de origen</td></tr><tr><td><code>created_at</code></td><td class="ty">timestamptz</td><td></td><td>Fecha y hora (con índice para consultar por fecha)</td></tr></tbody>
+    </table></div>
+  </div>
+</section>
+
+<h2 id="relaciones">4. Claves y relaciones</h2>
+<p>Todas las tablas tienen una clave primaria <code>id</code> autoincremental. Hay 10 llaves foráneas; 7 de ellas cruzan de un schema a otro. Las reglas de borrado siguen el valor del dato: el historial de ventas se protege, y lo que solo tiene sentido junto a su padre se borra con él.</p>
+<div class="card"><div class="scroll"><table>
+  <thead><tr><th>Tabla (FK)</th><th>Columna</th><th>Referencia (PK)</th><th>Cardinalidad</th><th>Al borrar el padre</th></tr></thead>
+  <tbody><tr><td><code>catalog.products</code></td><td><code>category_id</code></td><td><code>catalog.categories.id</code></td><td>1 categoría : N productos</td><td><strong>SET NULL</strong> – El producto queda sin categoría</td></tr><tr><td><code>sales.orders</code></td><td><code>user_id</code></td><td><code>auth.users.id</code></td><td>1 usuario : N pedidos</td><td><strong>RESTRICT</strong> – No se puede borrar un usuario con pedidos</td></tr><tr><td><code>sales.order_items</code></td><td><code>order_id</code></td><td><code>sales.orders.id</code></td><td>1 pedido : N ítems</td><td><strong>CASCADE</strong> – El detalle se borra con su pedido</td></tr><tr><td><code>sales.order_items</code></td><td><code>product_id</code></td><td><code>catalog.products.id</code></td><td>1 producto : N ítems</td><td><strong>SET NULL</strong> – El ítem conserva nombre y precio</td></tr><tr><td><code>sales.payments</code></td><td><code>order_id</code></td><td><code>sales.orders.id</code></td><td>1 pedido : 0..1 pago</td><td><strong>RESTRICT</strong> – Un pedido pagado no se puede borrar</td></tr><tr><td><code>sales.payments</code></td><td><code>user_id</code></td><td><code>auth.users.id</code></td><td>1 usuario : N pagos</td><td><strong>RESTRICT</strong> – No se puede borrar un usuario con pagos</td></tr><tr><td><code>storage.files</code></td><td><code>uploaded_by</code></td><td><code>auth.users.id</code></td><td>1 usuario : N archivos</td><td><strong>RESTRICT</strong> – No se puede borrar un usuario con archivos</td></tr><tr><td><code>messaging.notifications</code></td><td><code>user_id</code></td><td><code>auth.users.id</code></td><td>1 usuario : N notificaciones</td><td><strong>CASCADE</strong> – Se borran con el usuario</td></tr><tr><td><code>messaging.messages</code></td><td><code>user_id</code></td><td><code>auth.users.id</code></td><td>1 usuario : N mensajes</td><td><strong>CASCADE</strong> – Se borran con el usuario</td></tr><tr><td><code>audit.activity_log</code></td><td><code>user_id</code></td><td><code>auth.users.id</code></td><td>1 usuario : N registros</td><td><strong>SET NULL</strong> – El registro se conserva sin usuario</td></tr></tbody>
+</table></div></div>
+<p>Restricciones únicas: <code>auth.users.email</code>, <code>catalog.categories.name</code> y <code>sales.payments.order_id</code>.</p>
+
+<h2 id="permisos">5. Schemas privados y de lectura pública</h2>
+<div class="card"><div class="scroll"><table>
+  <thead><tr><th>Usuario de PostgreSQL</th><th>Quién lo usa</th><th>Qué puede hacer</th></tr></thead>
+  <tbody>
+    <tr><td><code>ecommerce_app</code></td><td>El backend (L3)</td><td>Dueño de los 6 schemas: lee y escribe en todos</td></tr>
+    <tr><td><code>ecommerce_consulta</code></td><td>Reportes o consultas externas</td><td>Solo <strong>leer</strong> el schema <code>catalog</code>. No entra a los demás ni puede modificar nada</td></tr>
+    <tr><td><code>postgres</code></td><td>Administrador de L4</td><td>Administración. No lo usa la aplicación</td></tr>
+  </tbody>
+</table></div></div>
+<p>Los schemas <code>auth</code>, <code>sales</code>, <code>storage</code>, <code>messaging</code> y <code>audit</code> son <strong>privados</strong>: ningún otro usuario puede entrar. <code>catalog</code> es de <strong>lectura pública</strong> porque es la única información que la tienda muestra sin iniciar sesión. El usuario de consulta se crea con el script <code>database/permisos.sql</code>, que ejecuta el administrador.</p>
+<p>Demostración, conectado como <code>ecommerce_consulta</code>:</p>
+<pre><code>SELECT * FROM catalog.products;                        -- funciona
+SELECT * FROM auth.users;                              -- ERROR: permiso denegado al schema auth
+INSERT INTO catalog.categories (name) VALUES ('x');    -- ERROR: permiso denegado</code></pre>
+
+<h2 id="consultas">6. Consultas para comprobar la estructura</h2>
+<p>Sirven en el Query Tool de pgAdmin, en DBeaver o en <code>psql</code>, por si el árbol de pgAdmin no carga.</p>
+<h4>Schemas, su dueño y su descripción</h4>
+<pre><code>SELECT n.nspname AS schema,
+       pg_get_userbyid(n.nspowner) AS dueno,
+       obj_description(n.oid, 'pg_namespace') AS descripcion
+FROM pg_namespace n
+WHERE n.nspname NOT LIKE 'pg_%' AND n.nspname &lt;&gt; 'information_schema'
+ORDER BY 1;</code></pre>
+<h4>Tablas de cada schema</h4>
+<pre><code>SELECT table_schema AS schema, table_name AS tabla
+FROM information_schema.tables
+WHERE table_schema IN ('auth','catalog','sales','storage','messaging','audit','public')
+ORDER BY 1, 2;</code></pre>
+<h4>Columnas de una tabla</h4>
+<pre><code>SELECT column_name AS columna, data_type AS tipo, is_nullable AS admite_nulo, column_default AS valor_defecto
+FROM information_schema.columns
+WHERE table_schema = 'sales' AND table_name = 'orders'
+ORDER BY ordinal_position;</code></pre>
+<h4>Llaves foráneas y regla de borrado</h4>
+<pre><code>SELECT tc.table_schema || '.' || tc.table_name   AS tabla,
+       kcu.column_name                           AS columna,
+       ccu.table_schema || '.' || ccu.table_name AS referencia,
+       rc.delete_rule                            AS al_borrar
+FROM information_schema.table_constraints tc
+JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
+JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name
+JOIN information_schema.referential_constraints rc ON rc.constraint_name = tc.constraint_name
+WHERE tc.constraint_type = 'FOREIGN KEY'
+ORDER BY 1, 2;</code></pre>
+<h4>Atajos en psql</h4>
+<pre><code>\dn+                  -- lista de schemas con permisos y descripción
+\dt auth.*            -- tablas del schema auth (cambiar por catalog, sales...)
+\d sales.orders       -- columnas, claves y relaciones de una tabla</code></pre>
+<h4>Datos de ejemplo cruzando schemas</h4>
+<pre><code>-- Pedidos con el cliente (auth), el producto (catalog) y el pago (sales)
+SELECT o.id AS pedido, u.name AS cliente, i.product_name AS producto,
+       i.quantity AS cantidad, o.total, o.status, p.method AS pago
+FROM sales.orders o
+JOIN auth.users u            ON u.id = o.user_id
+JOIN sales.order_items i     ON i.order_id = o.id
+LEFT JOIN sales.payments p   ON p.order_id = o.id
+ORDER BY o.id;
+
+-- Últimas operaciones registradas y qué instancia las atendió
+SELECT a.created_at, u.email, a.method, a.path, a.status_code, a.instance
+FROM audit.activity_log a
+LEFT JOIN auth.users u ON u.id = a.user_id
+ORDER BY a.id DESC
+LIMIT 20;</code></pre>
+
+<h2 id="creacion">7. Cómo se crea esta estructura</h2>
+<p>De dos formas equivalentes:</p>
+<ul>
+  <li><strong>Desde el backend:</strong> al arrancar, la instancia <code>backend-1</code> crea los schemas que falten (<code>CREATE SCHEMA IF NOT EXISTS</code>), sincroniza las tablas a partir de las entidades de TypeORM y escribe las descripciones. La instancia <code>backend-2</code> no modifica la estructura, para que las dos no choquen.</li>
+  <li><strong>Con el script</strong> <code>database/schema.sql</code>, que crea lo mismo a mano sobre una base vacía.</li>
+</ul>
+
+<footer>Proyecto de Aula · Tema 2.1 Integración en la Capa de Datos · Backend L3: Antonio Medranda · Repositorio: github.com/AntonioMedranda10/proyectoIntegracion</footer>
+</main>
+</body>
+</html>
