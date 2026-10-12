@@ -16,6 +16,7 @@ CREATE SCHEMA IF NOT EXISTS catalog;    -- productos que ofrece la tienda
 CREATE SCHEMA IF NOT EXISTS sales;      -- operación comercial: pedidos y pagos
 CREATE SCHEMA IF NOT EXISTS storage;    -- metadatos de archivos guardados en L5
 CREATE SCHEMA IF NOT EXISTS messaging;  -- comunicación con el cliente
+CREATE SCHEMA IF NOT EXISTS audit;      -- registro de operaciones que modifican datos
 
 -- ---------------------------------------------------------------------
 -- 2. auth: usuarios (módulos auth / users)
@@ -30,8 +31,15 @@ CREATE TABLE auth.users (
 );
 
 -- ---------------------------------------------------------------------
--- 3. catalog: productos (módulos products / catalog)
+-- 3. catalog: categorías y productos (módulos products / catalog)
 -- ---------------------------------------------------------------------
+CREATE TABLE catalog.categories (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(80) NOT NULL UNIQUE,
+    description TEXT,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE catalog.products (
     id          SERIAL PRIMARY KEY,
     name        VARCHAR(120)  NOT NULL,
@@ -39,6 +47,8 @@ CREATE TABLE catalog.products (
     price       NUMERIC(10,2) NOT NULL,
     stock       INTEGER       NOT NULL DEFAULT 0,
     image_url   VARCHAR,                                    -- URL de la imagen en L5
+    category_id INTEGER
+                REFERENCES catalog.categories(id) ON DELETE SET NULL,
     created_at  TIMESTAMPTZ   NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ   NOT NULL DEFAULT now()
 );
@@ -115,3 +125,43 @@ CREATE TABLE messaging.messages (
     content    TEXT         NOT NULL,
     created_at TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
+
+-- ---------------------------------------------------------------------
+-- 7. audit: registro de actividad (interceptor global del backend)
+-- ---------------------------------------------------------------------
+CREATE TABLE audit.activity_log (
+    id          SERIAL PRIMARY KEY,
+    user_id     INTEGER                                     -- NULL en registro/login
+                REFERENCES auth.users(id) ON DELETE SET NULL,
+    method      VARCHAR(10)  NOT NULL,                      -- POST, PATCH, DELETE
+    path        VARCHAR(255) NOT NULL,
+    status_code INTEGER      NOT NULL,
+    instance    VARCHAR(50)  NOT NULL,                      -- backend-1 | backend-2
+    ip_address  VARCHAR(64),
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+CREATE INDEX ON audit.activity_log (created_at);
+
+-- ---------------------------------------------------------------------
+-- 8. Descripciones (se ven en pgAdmin, en las propiedades de cada objeto)
+-- ---------------------------------------------------------------------
+COMMENT ON SCHEMA auth      IS 'Identidad y acceso: usuarios, contraseñas cifradas y roles. PRIVADO.';
+COMMENT ON SCHEMA catalog   IS 'Catálogo de la tienda: categorías y productos. Lectura pública a través de la API.';
+COMMENT ON SCHEMA sales     IS 'Operación comercial: pedidos, detalle y pagos. PRIVADO, historial de ventas.';
+COMMENT ON SCHEMA storage   IS 'Metadatos de los archivos guardados en el servidor de archivos (L5). PRIVADO.';
+COMMENT ON SCHEMA messaging IS 'Comunicación con el cliente: notificaciones y mensajes. PRIVADO.';
+COMMENT ON SCHEMA audit     IS 'Auditoría: registro de operaciones que modifican datos. PRIVADO, solo inserción y consulta.';
+COMMENT ON SCHEMA public    IS 'Sin uso. Las tablas del proyecto están organizadas en schemas por responsabilidad.';
+
+COMMENT ON TABLE auth.users              IS 'Clientes y administradores de la tienda';
+COMMENT ON TABLE catalog.categories      IS 'Categorías que agrupan los productos';
+COMMENT ON TABLE catalog.products        IS 'Productos en venta, con precio, stock e imagen';
+COMMENT ON TABLE sales.orders            IS 'Pedidos realizados por los usuarios';
+COMMENT ON TABLE sales.order_items       IS 'Productos incluidos en cada pedido';
+COMMENT ON TABLE sales.payments          IS 'Pago de cada pedido (uno por pedido)';
+COMMENT ON TABLE storage.files           IS 'Registro de cada archivo almacenado en L5';
+COMMENT ON TABLE messaging.notifications IS 'Avisos generados por el sistema para el usuario';
+COMMENT ON TABLE messaging.messages      IS 'Mensajes enviados por los clientes a la tienda';
+COMMENT ON TABLE audit.activity_log      IS 'Quién modificó qué, cuándo y qué instancia del backend lo atendió';
+
+-- Los permisos (qué schema es privado y cuál de lectura pública) están en permisos.sql.

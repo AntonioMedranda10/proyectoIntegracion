@@ -29,4 +29,9 @@ export class CreateProductDto {
   @IsInt()
   @Min(0)
   stock: number;
+
+  /** Id de la categoría (opcional). @example 1 */
+  @IsOptional()
+  @IsInt()
+  categoryId?: number;
 }

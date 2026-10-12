@@ -25,9 +25,11 @@ export class OrdersService {
       let total = 0;
       for (const { productId, quantity } of dto.items) {
         // Bloquea la fila para que dos instancias no vendan el mismo stock a la vez.
+        // Sin la categoría: PostgreSQL no permite FOR UPDATE sobre un LEFT JOIN.
         const product = await manager.findOne(Product, {
           where: { id: productId },
           lock: { mode: 'pessimistic_write' },
+          loadEagerRelations: false,
         });
         if (!product)
           throw new NotFoundException(`Producto ${productId} no encontrado`);

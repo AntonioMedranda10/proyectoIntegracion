@@ -12,7 +12,8 @@
 - [Documento de arquitectura (Word)](Documento_detallado_arquitectura_5_nodos.docx): descripción de los 5 nodos y su comunicación.
 - [Plan Frontend + Contrato de API](Plan_Frontend_Contrato_API.md): roles, pantallas y endpoints acordados entre frontend y backend.
 - [README del backend](backend/README.md): cómo ejecutar L3 y la lista de pasos para la prueba.
-- [Schema de la base de datos](database/schema.sql): las 8 tablas que crea el backend en PostgreSQL (referencia para L4).
+- [Schema de la base de datos](database/schema.sql): las 10 tablas en 6 schemas que crea el backend en PostgreSQL (referencia para L4).
+- [Permisos por schema](database/permisos.sql): qué schemas son privados y cuál es de lectura pública (lo ejecuta L4 como administrador).
 
 ## Ramas
 - **`main`**: versión estable y probada (la que se presenta).

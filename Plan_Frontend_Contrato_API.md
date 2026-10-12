@@ -135,6 +135,12 @@ Validaciones: email válido, contraseña de mínimo 6 caracteres. Si el email ya
 ```
 `imageUrl` puede ser `null` si el producto no tiene imagen: mostrar una imagen por defecto.
 
+Cada producto trae además su categoría: `"categoryId": 1` y `"category": { "id": 1, "name": "Electrónica", "description": "..." }`. Ambos son `null` si no tiene categoría.
+
+**🔓 `GET /catalog/categories`** → lista de categorías `[{ "id": 1, "name": "Electrónica", "description": "..." }]` (para el filtro del catálogo y el formulario de producto).
+
+**🔓 `GET /catalog/products?categoryId=1`** → productos de esa categoría (se puede combinar con `search`).
+
 **🔓 `GET /catalog/products/:id`** → un solo producto (misma forma). `404` si no existe.
 
 ### 4.4 Productos (gestión, solo admin)
@@ -176,6 +182,11 @@ axios.post(`${API}/products/${id}/image`, form, {
 | GET | `/messages/my` | 🔑 | mensajes enviados por el usuario |
 | GET | `/messages` | 👑 | todos los mensajes |
 | GET | `/users` | 👑 | lista de usuarios |
+| POST | `/categories` | 👑 | crear categoría `{ "name": "Juguetes", "description": "..." }` (409 si ya existe) |
+| DELETE | `/categories/:id` | 👑 | eliminar categoría (sus productos quedan sin categoría) |
+| GET | `/audit` | 👑 | últimas 100 operaciones que modificaron datos: usuario, ruta, código, instancia y fecha |
+
+Al crear o editar un producto se puede enviar `"categoryId": 1` (opcional). Si la categoría no existe responde 400.
 
 Documentación interactiva de todos los endpoints (Swagger): `http://192.168.10.11/api/docs`
 
