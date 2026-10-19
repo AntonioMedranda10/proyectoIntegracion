@@ -1,0 +1,990 @@
+{
+  "info": {
+    "name": "E-commerce L3 – Demo conexión con la base de datos",
+    "description": "Ejecutar en orden. Cada petición escribe o lee en PostgreSQL (L4). Después de cada una se puede mostrar el cambio en pgAdmin con la consulta indicada en su descripción.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001/api"
+    },
+    {
+      "key": "baseUrl2",
+      "value": "http://localhost:3002/api"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "clientToken",
+      "value": ""
+    },
+    {
+      "key": "productId",
+      "value": ""
+    },
+    {
+      "key": "orderId",
+      "value": ""
+    },
+    {
+      "key": "categoryId",
+      "value": ""
+    },
+    {
+      "key": "productId2",
+      "value": ""
+    },
+    {
+      "key": "notificationId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Estado de las instancias",
+      "item": [
+        {
+          "name": "1.1 Health backend-1",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/health",
+            "description": "Debe responder \"database\": \"up\": la instancia 1 llega a PostgreSQL.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Base de datos conectada', () => pm.expect(pm.response.json().database).to.eql('up'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.2 Health backend-2",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl2}}/health",
+            "description": "La segunda instancia también llega a la misma base.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Base de datos conectada', () => pm.expect(pm.response.json().database).to.eql('up'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Autenticación (lee auth.users)",
+      "item": [
+        {
+          "name": "2.1 Login administrador",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Busca el usuario en auth.users y valida la contraseña cifrada. Guarda el token automáticamente.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@tienda.com\",\n  \"password\": \"Admin123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login correcto', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('token', pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.2 Registrar cliente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/register",
+            "description": "INSERTA un usuario en auth.users (contraseña cifrada con bcrypt).\npgAdmin: SELECT id, name, email, role, password_hash FROM auth.users;",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cliente Demo\",\n  \"email\": \"cliente{{$timestamp}}@correo.com\",\n  \"password\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Usuario creado', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('clientToken', pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.3 Quién soy (token de la otra instancia)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl2}}/auth/me",
+            "description": "El token lo emitió backend-1 y lo acepta backend-2: las instancias son stateless."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Catálogo (schema catalog)",
+      "item": [
+        {
+          "name": "3.1 Listar categorías",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/catalog/categories",
+            "description": "Lee catalog.categories.\npgAdmin: SELECT * FROM catalog.categories;",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "3.2 Crear producto (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products",
+            "description": "INSERTA en catalog.products, relacionado con catalog.categories.\npgAdmin: SELECT * FROM catalog.products;",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Audífonos Bluetooth\",\n  \"description\": \"Inalámbricos, 20 h de batería\",\n  \"price\": 59.9,\n  \"stock\": 15,\n  \"categoryId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Producto creado', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('productId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3.3 Ver el producto creado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl2}}/catalog/products/{{productId}}",
+            "description": "Lo creó backend-1 y lo lee backend-2: los datos viven en la base, no en el backend.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "3.4 Cambiar precio (admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products/{{productId}}",
+            "description": "ACTUALIZA catalog.products.\npgAdmin: SELECT name, price, updated_at FROM catalog.products;",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 49.9\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "3.5 Buscar en el catálogo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/catalog/products?search=aud",
+            "description": "Consulta con filtro (ILIKE) sobre catalog.products.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Venta (schema sales)",
+      "item": [
+        {
+          "name": "4.1 Crear pedido (cliente)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/orders",
+            "description": "Transacción: INSERTA en sales.orders y sales.order_items, y DESCUENTA el stock en catalog.products.\npgAdmin: SELECT * FROM sales.orders; SELECT * FROM sales.order_items;",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [{ \"productId\": {{productId}}, \"quantity\": 2 }]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Pedido creado', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('orderId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4.2 Ver stock actualizado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/catalog/products/{{productId}}",
+            "description": "El stock bajó de 15 a 13.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "4.3 Pagar pedido (cliente)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl2}}/payments",
+            "description": "INSERTA en sales.payments y cambia el pedido a \"paid\".\npgAdmin: SELECT * FROM sales.payments; SELECT id, status FROM sales.orders;",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": {{orderId}},\n  \"method\": \"card\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "4.4 Mis pedidos (cliente)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/orders/my",
+            "description": "Lee los pedidos del cliente con su detalle.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "4.5 Mis notificaciones (cliente)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/notifications",
+            "description": "Avisos generados por el pedido y el pago en messaging.notifications.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const n = pm.response.json(); if (n.length) pm.collectionVariables.set('notificationId', n[0].id);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Auditoría (schema audit)",
+      "item": [
+        {
+          "name": "5.1 Ver auditoría (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/audit",
+            "description": "Cada operación anterior quedó registrada con su usuario y la instancia que la atendió.\npgAdmin: SELECT * FROM audit.activity_log ORDER BY id DESC;"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Validaciones (no tocan la base)",
+      "item": [
+        {
+          "name": "6.1 Sin token -> 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products",
+            "description": "El guard rechaza la petición antes de llegar a la base.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"X\",\n  \"price\": 1,\n  \"stock\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "6.2 Cliente sin permiso -> 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products",
+            "description": "Tiene sesión, pero no es administrador.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"X\",\n  \"price\": 1,\n  \"stock\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "6.3 Datos inválidos -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products",
+            "description": "El ValidationPipe rechaza el DTO.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"price\": -5,\n  \"stock\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "6.4 Stock insuficiente -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/orders",
+            "description": "La regla de negocio consulta el stock en la base y rechaza el pedido.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [{ \"productId\": {{productId}}, \"quantity\": 999 }]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "6.5 Email ya registrado -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/register",
+            "description": "El email es único en auth.users: no se puede registrar dos veces.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Otro\",\n  \"email\": \"admin@tienda.com\",\n  \"password\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "6.6 Contraseña incorrecta -> 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Compara contra la contraseña cifrada guardada en auth.users.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@tienda.com\",\n  \"password\": \"incorrecta\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "6.7 Producto inexistente -> 404",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/catalog/products/99999",
+            "description": "La base no tiene ese id.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "6.8 Pagar dos veces -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/payments",
+            "description": "El pedido ya está pagado: sales.payments admite un solo pago por pedido.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": {{orderId}},\n  \"method\": \"cash\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "6.9 Categoría inexistente -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products",
+            "description": "Se valida que la categoría exista antes de relacionarla.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Producto X\",\n  \"price\": 10,\n  \"stock\": 1,\n  \"categoryId\": 99999\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "6.10 Id inválido -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/catalog/products/abc",
+            "description": "El id debe ser un número (ParseIntPipe).",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Relaciones entre tablas",
+      "item": [
+        {
+          "name": "7.1 Crear categoría (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/categories",
+            "description": "INSERTA en catalog.categories. Si se ejecuta otra vez responde 409: el nombre es único.\npgAdmin: SELECT * FROM catalog.categories;",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Gaming\",\n  \"description\": \"Consolas, mandos y accesorios\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) pm.collectionVariables.set('categoryId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.2 Crear producto en esa categoría",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/products",
+            "description": "El producto queda relacionado por llave foránea (category_id) con la categoría.\npgAdmin: SELECT p.name, c.name AS categoria FROM catalog.products p LEFT JOIN catalog.categories c ON c.id = p.category_id;",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mando inalámbrico\",\n  \"description\": \"Compatible con PC y consola\",\n  \"price\": 35,\n  \"stock\": 10,\n  \"categoryId\": {{categoryId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) pm.collectionVariables.set('productId2', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7.3 Filtrar catálogo por categoría",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/catalog/products?categoryId={{categoryId}}",
+            "description": "Consulta los productos de una categoría.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "7.4 Subir imagen al producto (admin)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/products/{{productId2}}/image",
+            "description": "Body -> form-data -> key \"file\" (tipo File) -> elegir una imagen JPG o PNG.\nEl backend la envía al servidor de archivos (L5) y guarda su registro en storage.files.\npgAdmin: SELECT * FROM storage.files;",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Mensajes y notificaciones (schema messaging)",
+      "item": [
+        {
+          "name": "8.1 Enviar mensaje a la tienda (cliente)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/messages",
+            "description": "INSERTA en messaging.messages, relacionado con el usuario.\npgAdmin: SELECT * FROM messaging.messages;",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subject\": \"Consulta sobre mi pedido\",\n  \"content\": \"¿Cuándo llega mi pedido?\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "8.2 Mis mensajes (cliente)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/messages/my",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "8.3 Todos los mensajes (admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/messages",
+            "description": "El administrador ve los mensajes de todos los clientes."
+          }
+        },
+        {
+          "name": "8.4 Marcar notificación como leída (cliente)",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/notifications/{{notificationId}}/read",
+            "description": "ACTUALIZA la columna read de messaging.notifications a true.\npgAdmin: SELECT id, message, read FROM messaging.notifications;",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Consultas del administrador",
+      "item": [
+        {
+          "name": "9.1 Listar usuarios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users",
+            "description": "Lee auth.users. La contraseña nunca se devuelve."
+          }
+        },
+        {
+          "name": "9.2 Todos los pedidos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/orders",
+            "description": "Pedidos de todos los clientes con su detalle (sales.orders + sales.order_items)."
+          }
+        },
+        {
+          "name": "9.3 Mis pagos (cliente)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/payments/my",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Reglas de borrado (integridad referencial)",
+      "item": [
+        {
+          "name": "10.1 Eliminar categoría (admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/categories/{{categoryId}}",
+            "description": "ON DELETE SET NULL: los productos de esa categoría NO se borran, quedan sin categoría."
+          }
+        },
+        {
+          "name": "10.2 Ver el producto: quedó sin categoría",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/catalog/products/{{productId2}}",
+            "description": "categoryId y category ahora son null.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "10.3 Eliminar producto que ya se vendió (admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/products/{{productId}}",
+            "description": "ON DELETE SET NULL en sales.order_items: el pedido conserva el nombre y el precio del producto.\npgAdmin: SELECT * FROM sales.order_items;"
+          }
+        },
+        {
+          "name": "10.4 Ver el pedido: conserva el historial",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/orders/my",
+            "description": "productId es null, pero productName y unitPrice siguen ahí: el historial de ventas no se pierde.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{clientToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
