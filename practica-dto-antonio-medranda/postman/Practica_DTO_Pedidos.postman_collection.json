@@ -1,0 +1,364 @@
+{
+  "info": {
+    "name": "Práctica DTO – Registrar un pedido (Antonio Medranda)",
+    "description": "Pruebas del contrato JSON de POST /api/pedidos. Ejecutar \"php artisan migrate:fresh --seed\" antes para partir de datos limpios.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8088/api"
+    },
+    {
+      "key": "pedidoId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Pruebas obligatorias",
+      "item": [
+        {
+          "name": "P1 – JSON válido (cliente web) → 201",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código 201 Created', () => pm.response.to.have.status(201));",
+                  "const d = pm.response.json().data;",
+                  "pm.test('Respuesta cumple el contrato', () => { pm.expect(d.pedido_id).to.be.a('number'); pm.expect(d.total).to.be.a('number'); pm.expect(d.items).to.be.an('array'); pm.expect(d.fecha_registro).to.match(/^\\d{4}-\\d{2}-\\d{2}T/); });",
+                  "pm.collectionVariables.set('pedidoId', d.pedido_id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/pedidos",
+            "description": "Todos los campos obligatorios con el tipo correcto. Respuesta según el contrato y código 201.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuario_id\": 1,\n  \"metodo_pago\": \"tarjeta\",\n  \"direccion_entrega\": \"Av. 4 de Noviembre y calle 15, Manta\",\n  \"items\": [\n    {\n      \"producto_id\": 1,\n      \"cantidad\": 2\n    },\n    {\n      \"producto_id\": 2,\n      \"cantidad\": 1\n    }\n  ],\n  \"observacion\": \"Entregar en horario de la tarde\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "P2 – Falta un campo obligatorio → 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Detalle en metodo_pago', () => pm.expect(pm.response.json().errors).to.have.property('metodo_pago'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/pedidos",
+            "description": "Se omite metodo_pago. Laravel responde 422 con el detalle por campo y no guarda nada.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuario_id\": 1,\n  \"direccion_entrega\": \"Av. 4 de Noviembre y calle 15, Manta\",\n  \"items\": [\n    {\n      \"producto_id\": 1,\n      \"cantidad\": 2\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "P3 – Tipo de dato incorrecto → 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Errores de tipo', () => { const e = pm.response.json().errors; pm.expect(e).to.have.property('usuario_id'); pm.expect(e).to.have.property('items.0.cantidad'); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/pedidos",
+            "description": "usuario_id llega como texto (\"1\") y cantidad como \"dos\". Error controlado: no se guarda el pedido ni cambia el stock.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuario_id\": \"1\",\n  \"metodo_pago\": \"tarjeta\",\n  \"direccion_entrega\": \"Av. 4 de Noviembre y calle 15, Manta\",\n  \"items\": [\n    {\n      \"producto_id\": 1,\n      \"cantidad\": \"dos\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pruebas adicionales",
+      "item": [
+        {
+          "name": "E1 – Método de pago no permitido → 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código 422', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/pedidos",
+            "description": "metodo_pago solo admite: tarjeta, efectivo, transferencia.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuario_id\": 1,\n  \"metodo_pago\": \"bitcoin\",\n  \"direccion_entrega\": \"Av. 4 de Noviembre y calle 15, Manta\",\n  \"items\": [\n    {\n      \"producto_id\": 1,\n      \"cantidad\": 2\n    },\n    {\n      \"producto_id\": 2,\n      \"cantidad\": 1\n    }\n  ],\n  \"observacion\": \"Entregar en horario de la tarde\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "E2 – Stock insuficiente → 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código 422', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/pedidos",
+            "description": "Regla de negocio: el producto 4 solo tiene 3 unidades. La transacción se revierte completa (tampoco se descuenta el producto 1).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuario_id\": 2,\n  \"metodo_pago\": \"efectivo\",\n  \"direccion_entrega\": \"Calle 13 y Av. 24, Manta\",\n  \"items\": [\n    {\n      \"producto_id\": 1,\n      \"cantidad\": 1\n    },\n    {\n      \"producto_id\": 4,\n      \"cantidad\": 10\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "E3 – JSON mal formado → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/pedidos",
+            "description": "El cuerpo no se puede deserializar. Se responde 400 en lugar de tratarlo como una solicitud vacía.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuario_id\": 1,\n  \"metodo_pago\": \"tarjeta\",\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "E4 – Campos fuera del contrato se ignoran → 201",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Precio de la base, no del cliente', () => pm.expect(pm.response.json().data.total).to.eql(45.99));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/pedidos",
+            "description": "El cliente intenta imponer total y precio. Se ignoran: el precio sale de la base (45.99).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuario_id\": 1,\n  \"metodo_pago\": \"tarjeta\",\n  \"direccion_entrega\": \"Av. 4 de Noviembre y calle 15, Manta\",\n  \"items\": [\n    {\n      \"producto_id\": 3,\n      \"cantidad\": 1,\n      \"precio_unitario\": 0.01\n    }\n  ],\n  \"observacion\": \"Entregar en horario de la tarde\",\n  \"total\": 0.01\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Consumo por otro cliente",
+      "item": [
+        {
+          "name": "C1 – Consultar pedido (cliente móvil) → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Mismo pedido', () => pm.expect(pm.response.json().data.pedido_id).to.eql(Number(pm.collectionVariables.get('pedidoId'))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/pedidos/{{pedidoId}}",
+            "description": "Otro cliente consume el pedido creado en P1 y recibe exactamente el mismo contrato."
+          }
+        },
+        {
+          "name": "C2 – Pedido inexistente → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Código 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/pedidos/9999"
+          }
+        }
+      ]
+    }
+  ]
+}
