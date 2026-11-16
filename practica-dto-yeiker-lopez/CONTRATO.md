@@ -138,6 +138,10 @@ Si mañana cambia una columna, solo cambian el DTO y el Resource. El contrato, y
 
 ## 8. Diagrama
 
+![Flujo de intercambio](docs/diagrama.png)
+
+Versión en texto (Mermaid):
+
 ```mermaid
 flowchart LR
     C["Cliente web / móvil"] -- "POST JSON" --> V["RegistrarProductoRequest<br/>validación"]
