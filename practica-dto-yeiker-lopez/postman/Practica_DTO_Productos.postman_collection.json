@@ -1,0 +1,157 @@
+{
+  "info": {
+    "name": "Práctica 2.2 – Registrar producto (Yeiker Lopez)",
+    "description": "Pruebas del contrato JSON de POST /api/v1/products. Postman hace el papel del cliente móvil: usa exactamente el mismo contrato que el cliente web.\n\nAntes de ejecutar: php artisan migrate:fresh --seed y php artisan serve. Ejecutar en orden (P1 guarda el id que usa la consulta).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:8000/api/v1" },
+    { "key": "productId", "value": "3" }
+  ],
+  "item": [
+    {
+      "name": "P1 – JSON válido (201)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 201 Created', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('Cumple el contrato de respuesta', () => {",
+              "  const d = body.data;",
+              "  pm.expect(body.message).to.be.a('string');",
+              "  pm.expect(d).to.have.all.keys('id', 'name', 'description', 'price', 'stock', 'available', 'categoryId', 'category', 'imageUrl', 'createdAt');",
+              "  pm.expect(d.id).to.be.a('number');",
+              "  pm.expect(d.price).to.be.a('number');",
+              "  pm.expect(d.stock).to.be.a('number');",
+              "  pm.expect(d.available).to.be.a('boolean');",
+              "  pm.expect(d.createdAt).to.match(/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$/);",
+              "});",
+              "pm.collectionVariables.set('productId', body.data.id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Parlante portátil\",\n  \"description\": \"Resistente al agua, 12 h de batería\",\n  \"price\": 35.5,\n  \"stock\": 20,\n  \"categoryId\": 1\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": { "raw": "{{baseUrl}}/products", "host": ["{{baseUrl}}"], "path": ["products"] }
+      }
+    },
+    {
+      "name": "P2 – Falta un campo obligatorio (422)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 422 Unprocessable Content', () => pm.response.to.have.status(422));",
+              "pm.test('Indica que falta name', () => pm.expect(pm.response.json().errors).to.have.property('name'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"description\": \"Sin nombre\",\n  \"price\": 12.99,\n  \"stock\": 5,\n  \"categoryId\": 3\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": { "raw": "{{baseUrl}}/products", "host": ["{{baseUrl}}"], "path": ["products"] }
+      }
+    },
+    {
+      "name": "P3 – Tipos de dato incorrectos (422)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 422 Unprocessable Content', () => pm.response.to.have.status(422));",
+              "pm.test('Detalla price, stock y categoryId', () => {",
+              "  pm.expect(pm.response.json().errors).to.have.all.keys('price', 'stock', 'categoryId');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Cable HDMI 2 m\",\n  \"description\": null,\n  \"price\": \"8.75\",\n  \"stock\": \"veinte\",\n  \"categoryId\": \"3\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": { "raw": "{{baseUrl}}/products", "host": ["{{baseUrl}}"], "path": ["products"] }
+      }
+    },
+    {
+      "name": "Consulta del producto creado (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('Devuelve el mismo contrato', () => {",
+              "  pm.expect(pm.response.json().data).to.have.all.keys('id', 'name', 'description', 'price', 'stock', 'available', 'categoryId', 'category', 'imageUrl', 'createdAt');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/products/{{productId}}", "host": ["{{baseUrl}}"], "path": ["products", "{{productId}}"] }
+      }
+    },
+    {
+      "name": "Producto inexistente (404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": ["pm.test('Responde 404 Not Found en JSON', () => {", "  pm.response.to.have.status(404);", "  pm.expect(pm.response.json()).to.have.property('message');", "});"]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/products/999", "host": ["{{baseUrl}}"], "path": ["products", "999"] }
+      }
+    },
+    {
+      "name": "Categorías (200)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/categories", "host": ["{{baseUrl}}"], "path": ["categories"] }
+      }
+    }
+  ]
+}
