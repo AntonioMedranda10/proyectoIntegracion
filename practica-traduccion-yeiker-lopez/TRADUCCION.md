@@ -69,16 +69,16 @@ En el proyecto de aula, los productos del catálogo pueden llegar desde dos comp
 
 | Entrada | Origen | Por qué se rechaza | Error (422) |
 |---|---|---|---|
-| `"precio": "35.50"` | A | Ambiguo: esa hoja usa coma decimal; podría ser un error de formato | `"35.50" es ambiguo: esta hoja usa coma decimal. Escriba "35,50".` |
-| `"precio": "1.234,50"`, `"35,555"`, `"treinta"` | A | Separador de miles, 3 decimales o texto | `… no es un monto válido: use solo dígitos y coma decimal …` |
-| `"existencias": "20.5"` o `"veinte"` | A | Una cantidad no puede tener decimales ni letras | `… no es una cantidad válida …` |
-| `"categoria": "Juguetes"` | A | No existe en el catálogo | `La categoría "Juguetes" no existe. Valores válidos: Accesorios, Electrónica, Hogar.` |
-| `"currency": "EUR"` | B | El traductor no inventa conversiones de moneda | `"EUR" no se acepta: solo precios en USD …` |
-| `"amount_cents": "3550"` o `35.5` | B | Debe ser un entero de centavos | `Debe ser un número entero de centavos …` |
+| `"precio": "35.50"` | A | Ambiguo: esa hoja usa coma decimal; podría ser un error de formato | `precio: "35.50" es ambiguo: esta hoja usa coma decimal. Escriba "35,50".` |
+| `"precio": "1.234,50"`, `"35,555"`, `"treinta"` | A | Separador de miles, 3 decimales o texto | `precio: "…" no es un monto válido: use solo dígitos y coma decimal …` |
+| `"existencias": "20.5"` o `"veinte"` | A | Una cantidad no puede tener decimales ni letras | `existencias: "…" no es una cantidad válida …` |
+| `"categoria": "Juguetes"` | A | No existe en el catálogo | `categoria: la categoría "Juguetes" no existe. Valores válidos: Accesorios, Electrónica, Hogar.` |
+| `"currency": "EUR"` | B | El traductor no inventa conversiones de moneda | `product.pricing.currency: "EUR" no se acepta: solo precios en USD …` |
+| `"amount_cents": "3550"` o `35.5` | B | Debe ser un entero de centavos | `product.pricing.amount_cents: debe ser un número entero de centavos …` |
 | Falta `product.pricing` | B | Campo obligatorio | Errores en `product.pricing.amount_cents` y `product.pricing.currency` |
-| `"category_code": "TOYS"` | B | Código sin equivalencia | `Código de categoría desconocido: "TOYS". Valores válidos: ELEC, HOME, ACC.` |
+| `"category_code": "TOYS"` | B | Código sin equivalencia | `product.category_code: código desconocido: "TOYS". Valores válidos: ELEC, HOME, ACC.` |
 
-Los errores usan **el nombre del campo del origen** (`precio`, `product.pricing.currency`), para que quien envía los datos sepa exactamente qué corregir. Se reúnen todos los errores de una entrada en una sola respuesta. Después de traducir, el contrato se valida con las reglas de la 2.2; por ejemplo, un nombre repetido devuelve `422` en el campo `name`.
+Cada error se guarda bajo **el nombre del campo del origen** y su mensaje empieza con ese nombre (`precio: …`, `product.pricing.currency: …`), para que quien envía los datos sepa exactamente qué corregir. Se reúnen todos los errores de una entrada en una sola respuesta. Después de traducir, el contrato se valida con las reglas de la 2.2; por ejemplo, un nombre repetido devuelve `422` en el campo `name`.
 
 ## 4. Traductor (Actividad 3)
 

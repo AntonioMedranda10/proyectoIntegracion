@@ -72,7 +72,7 @@ class NormalizadorProductos
         $this->errores = [];
 
         if (! is_array($entrada['product'] ?? null)) {
-            $this->error('product', 'Falta el objeto "product" con los datos del producto.');
+            $this->error('product', 'falta el objeto con los datos del producto.');
 
             return $this->resultado([]);
         }
@@ -93,10 +93,10 @@ class NormalizadorProductos
         $valor = Arr::get($entrada, $campo);
 
         if ($valor === null || (is_string($valor) && trim($valor) === '')) {
-            return $this->error($campo, 'Es obligatorio.');
+            return $this->error($campo, 'es obligatorio.');
         }
         if (! is_string($valor)) {
-            return $this->error($campo, 'Debe ser texto.');
+            return $this->error($campo, 'debe ser texto.');
         }
 
         return trim($valor);
@@ -111,7 +111,7 @@ class NormalizadorProductos
             return null;
         }
         if (! is_string($valor)) {
-            return $this->error($campo, 'Debe ser texto o estar vacío.');
+            return $this->error($campo, 'debe ser texto o estar vacío.');
         }
 
         return trim($valor) === '' ? null : trim($valor);
@@ -123,10 +123,10 @@ class NormalizadorProductos
         $valor = Arr::get($entrada, $campo);
 
         if ($valor === null || $valor === '') {
-            return $this->error($campo, 'Es obligatorio. Ejemplo: "35,50".');
+            return $this->error($campo, 'es obligatorio. Ejemplo: "35,50".');
         }
         if (! is_string($valor)) {
-            return $this->error($campo, 'Debe llegar como texto, igual que en la hoja. Ejemplo: "35,50".');
+            return $this->error($campo, 'debe llegar como texto, igual que en la hoja. Ejemplo: "35,50".');
         }
 
         $texto = trim($valor);
@@ -139,7 +139,7 @@ class NormalizadorProductos
 
         $monto = round((float) str_replace(',', '.', $texto), 2);
 
-        return $monto > 0 ? $monto : $this->error($campo, 'Debe ser mayor que 0.');
+        return $monto > 0 ? $monto : $this->error($campo, 'debe ser mayor que 0.');
     }
 
     /** "20" → 20. Solo dígitos: "20.5", "-3" o "veinte" se rechazan. */
@@ -148,10 +148,10 @@ class NormalizadorProductos
         $valor = Arr::get($entrada, $campo);
 
         if ($valor === null || $valor === '') {
-            return $this->error($campo, 'Es obligatorio. Ejemplo: "20".');
+            return $this->error($campo, 'es obligatorio. Ejemplo: "20".');
         }
         if (! is_string($valor)) {
-            return $this->error($campo, 'Debe llegar como texto, igual que en la hoja. Ejemplo: "20".');
+            return $this->error($campo, 'debe llegar como texto, igual que en la hoja. Ejemplo: "20".');
         }
 
         $texto = trim($valor);
@@ -168,23 +168,20 @@ class NormalizadorProductos
         $centavos = Arr::get($entrada, "{$campo}.amount_cents");
         $moneda = Arr::get($entrada, "{$campo}.currency");
 
+        $precio = match (true) {
+            $centavos === null => $this->error("{$campo}.amount_cents", 'es obligatorio (precio en centavos). Ejemplo: 3550 = $35,50.'),
+            ! is_int($centavos) => $this->error("{$campo}.amount_cents", 'debe ser un número entero de centavos, no texto ni decimales. Ejemplo: 3550.'),
+            $centavos <= 0 => $this->error("{$campo}.amount_cents", 'debe ser mayor que 0.'),
+            default => round($centavos / 100, 2),
+        };
+
         if ($moneda !== 'USD') {
-            $this->error("{$campo}.currency", $moneda === null
-                ? 'Es obligatorio. Ejemplo: "USD".'
+            $precio = $this->error("{$campo}.currency", $moneda === null
+                ? 'es obligatorio. Ejemplo: "USD".'
                 : json_encode($moneda, JSON_UNESCAPED_UNICODE).' no se acepta: solo precios en USD (el traductor no convierte monedas).');
         }
 
-        if ($centavos === null) {
-            return $this->error("{$campo}.amount_cents", 'Es obligatorio: precio en centavos. Ejemplo: 3550 (= $35,50).');
-        }
-        if (! is_int($centavos)) {
-            return $this->error("{$campo}.amount_cents", 'Debe ser un número entero de centavos, no texto ni decimales. Ejemplo: 3550.');
-        }
-        if ($centavos <= 0) {
-            return $this->error("{$campo}.amount_cents", 'Debe ser mayor que 0.');
-        }
-
-        return $moneda === 'USD' ? round($centavos / 100, 2) : null;
+        return $precio;
     }
 
     private function cantidadEntera(array $entrada, string $campo): ?int
@@ -192,10 +189,10 @@ class NormalizadorProductos
         $valor = Arr::get($entrada, $campo);
 
         if ($valor === null) {
-            return $this->error($campo, 'Es obligatorio. Ejemplo: 20.');
+            return $this->error($campo, 'es obligatorio. Ejemplo: 20.');
         }
         if (! is_int($valor) || $valor < 0) {
-            return $this->error($campo, 'Debe ser un número entero mayor o igual a 0, no texto. Ejemplo: 20.');
+            return $this->error($campo, 'debe ser un número entero mayor o igual a 0, no texto. Ejemplo: 20.');
         }
 
         return $valor;
@@ -214,7 +211,7 @@ class NormalizadorProductos
 
         return $categoria?->id ?? $this->error(
             $campo,
-            "La categoría \"{$nombre}\" no existe. Valores válidos: {$categorias->pluck('nombre')->join(', ')}."
+            "la categoría \"{$nombre}\" no existe. Valores válidos: {$categorias->pluck('nombre')->join(', ')}."
         );
     }
 
@@ -228,20 +225,20 @@ class NormalizadorProductos
 
         $nombre = is_string($codigo) ? (self::CATEGORIAS_DEL_PROVEEDOR[$codigo] ?? null) : null;
         if ($nombre === null) {
-            return $this->error($campo, 'Código de categoría desconocido: '.json_encode($codigo, JSON_UNESCAPED_UNICODE)
+            return $this->error($campo, 'código desconocido: '.json_encode($codigo, JSON_UNESCAPED_UNICODE)
                 .'. Valores válidos: '.implode(', ', array_keys(self::CATEGORIAS_DEL_PROVEEDOR)).'.');
         }
 
         return Categoria::where('nombre', $nombre)->value('id')
-            ?? $this->error($campo, "La categoría \"{$nombre}\" (código {$codigo}) no está en el catálogo.");
+            ?? $this->error($campo, "la categoría \"{$nombre}\" (código {$codigo}) no está en el catálogo.");
     }
 
     // ---------------------------------------------------------------- errores
 
-    /** Anota un error del origen y devuelve null para que ese campo no se use. */
+    /** Anota un error con el nombre del campo del origen y devuelve null para que no se use. */
     private function error(string $campo, string $mensaje): null
     {
-        $this->errores[$campo][] = $mensaje;
+        $this->errores[$campo][] = "{$campo}: {$mensaje}";
 
         return null;
     }
