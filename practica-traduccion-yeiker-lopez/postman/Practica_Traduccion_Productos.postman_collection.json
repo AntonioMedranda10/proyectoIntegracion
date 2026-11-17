@@ -1,0 +1,374 @@
+{
+  "info": {
+    "name": "Práctica 2.3 – Traducción y normalización (Yeiker Lopez)",
+    "description": "Dos orígenes con estructuras distintas (hoja de inventario y proveedor externo) se traducen al mismo contrato común de productos.\n\nAntes de ejecutar: php artisan migrate:fresh --seed y php artisan serve. Ejecutar en orden: P2 compara su salida con la de P1.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000/api/v1"
+    },
+    {
+      "key": "contratoP1",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "P1 – Origen A válido (hoja de inventario)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));",
+              "const d = pm.response.json().data;",
+              "pm.test('Devuelve el contrato común con sus tipos', () => {",
+              "  pm.expect(d).to.have.all.keys('name', 'description', 'price', 'stock', 'categoryId');",
+              "  pm.expect(d.name).to.be.a('string');",
+              "  pm.expect(d.price).to.be.a('number');",
+              "  pm.expect(Number.isInteger(d.stock)).to.be.true;",
+              "  pm.expect(Number.isInteger(d.categoryId)).to.be.true;",
+              "});",
+              "pm.collectionVariables.set('contratoP1', JSON.stringify(d));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre_producto\": \"Parlante portátil\",\n  \"descripcion\": \"Resistente al agua, 12 h de batería\",\n  \"precio\": \"35,50\",\n  \"existencias\": \"20\",\n  \"categoria\": \"Electrónica\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/normalize/inventory",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "normalize",
+            "inventory"
+          ]
+        }
+      }
+    },
+    {
+      "name": "P2 – Origen B equivalente (proveedor)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));",
+              "const d = pm.response.json().data;",
+              "pm.test('Devuelve el contrato común con sus tipos', () => {",
+              "  pm.expect(d).to.have.all.keys('name', 'description', 'price', 'stock', 'categoryId');",
+              "  pm.expect(d.name).to.be.a('string');",
+              "  pm.expect(d.price).to.be.a('number');",
+              "  pm.expect(Number.isInteger(d.stock)).to.be.true;",
+              "  pm.expect(Number.isInteger(d.categoryId)).to.be.true;",
+              "});",
+              "pm.test('Es idéntico al contrato de P1 (mismo significado y tipos)', () => {",
+              "  pm.expect(d).to.eql(JSON.parse(pm.collectionVariables.get('contratoP1')));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"product\": {\n    \"title\": \"Parlante portátil\",\n    \"details\": \"Resistente al agua, 12 h de batería\",\n    \"pricing\": {\n      \"amount_cents\": 3550,\n      \"currency\": \"USD\"\n    },\n    \"inventory\": {\n      \"available\": 20\n    },\n    \"category_code\": \"ELEC\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/normalize/supplier",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "normalize",
+            "supplier"
+          ]
+        }
+      }
+    },
+    {
+      "name": "P3 – Monto inválido en A (422)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 422 Unprocessable Content', () => pm.response.to.have.status(422));",
+              "pm.test('Explica el error del campo precio', () => pm.expect(pm.response.json().errors).to.have.property('precio'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre_producto\": \"Parlante portátil\",\n  \"descripcion\": \"Resistente al agua, 12 h de batería\",\n  \"precio\": \"35.50\",\n  \"existencias\": \"20\",\n  \"categoria\": \"Electrónica\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/import/inventory",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "import",
+            "inventory"
+          ]
+        }
+      }
+    },
+    {
+      "name": "P3 – Campo faltante en B (422)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 422 Unprocessable Content', () => pm.response.to.have.status(422));",
+              "pm.test('Explica qué falta en product.pricing', () => {",
+              "  pm.expect(pm.response.json().errors).to.have.all.keys('product.pricing.amount_cents', 'product.pricing.currency');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"product\": {\n    \"title\": \"Parlante portátil\",\n    \"details\": \"Resistente al agua, 12 h de batería\",\n    \"inventory\": {\n      \"available\": 20\n    },\n    \"category_code\": \"ELEC\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/import/supplier",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "import",
+            "supplier"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Importar desde A (201)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 201 Created', () => pm.response.to.have.status(201));",
+              "pm.test('Responde con el contrato de la práctica 2.2', () => {",
+              "  pm.expect(pm.response.json().data).to.have.all.keys('id', 'name', 'description', 'price', 'stock', 'available', 'categoryId', 'category', 'imageUrl', 'createdAt');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre_producto\": \"Parlante portátil\",\n  \"descripcion\": \"Resistente al agua, 12 h de batería\",\n  \"precio\": \"35,50\",\n  \"existencias\": \"20\",\n  \"categoria\": \"Electrónica\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/import/inventory",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "import",
+            "inventory"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Importar el mismo producto desde B (422 nombre repetido)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 422: aplica la regla de nombre único de la 2.2', () => {",
+              "  pm.response.to.have.status(422);",
+              "  pm.expect(pm.response.json().errors).to.have.property('name');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"product\": {\n    \"title\": \"Parlante portátil\",\n    \"details\": \"Resistente al agua, 12 h de batería\",\n    \"pricing\": {\n      \"amount_cents\": 3550,\n      \"currency\": \"USD\"\n    },\n    \"inventory\": {\n      \"available\": 20\n    },\n    \"category_code\": \"ELEC\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/import/supplier",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "import",
+            "supplier"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Moneda distinta de USD (422)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 422 sin convertir la moneda', () => {",
+              "  pm.response.to.have.status(422);",
+              "  pm.expect(pm.response.json().errors).to.have.property('product.pricing.currency');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"product\": {\n    \"title\": \"Parlante portátil\",\n    \"details\": \"Resistente al agua, 12 h de batería\",\n    \"pricing\": {\n      \"amount_cents\": 3550,\n      \"currency\": \"EUR\"\n    },\n    \"inventory\": {\n      \"available\": 20\n    },\n    \"category_code\": \"ELEC\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/normalize/supplier",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "normalize",
+            "supplier"
+          ]
+        }
+      }
+    }
+  ]
+}

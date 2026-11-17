@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Traductor de productos</title>
+  <style>
+    :root { --borde: #d9d4cc; --texto: #2b2b2b; --suave: #6b6560; --ok: #1f7a4d; --error: #b3261e; --fondo: #faf8f5; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px 16px; font: 15px/1.5 system-ui, sans-serif; color: var(--texto); background: var(--fondo); }
+    .contenedor { max-width: 1080px; margin: 0 auto; }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    .sub { margin: 0 0 18px; color: var(--suave); }
+    .origenes { display: grid; gap: 20px; grid-template-columns: 1fr 1fr; }
+    @media (max-width: 760px) { .origenes { grid-template-columns: 1fr; } }
+    section { background: #fff; border: 1px solid var(--borde); border-radius: 8px; padding: 16px; min-width: 0; }
+    h2 { margin: 0; font-size: 16px; }
+    .detalle { margin: 2px 0 10px; color: var(--suave); font-size: 13px; }
+    textarea { width: 100%; height: 230px; padding: 10px; border: 1px solid var(--borde); border-radius: 6px; font: 13px/1.45 Consolas, monospace; resize: vertical; }
+    .acciones { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0; }
+    button { padding: 10px 16px; border: 1px solid #2b2b2b; border-radius: 6px; background: #fff; color: #2b2b2b; font: inherit; cursor: pointer; }
+    button.principal { background: #2b2b2b; color: #fff; }
+    .estado { font-weight: 700; margin: 12px 0 6px; }
+    .estado.ok { color: var(--ok); } .estado.mal { color: var(--error); }
+    pre { margin: 0; padding: 12px; background: #f3f0eb; border-radius: 6px; overflow-x: auto; font-size: 13px; }
+    .veredicto { padding: 12px 16px; border-radius: 8px; font-weight: 700; margin-bottom: 12px; }
+    .veredicto.ok { background: #e3f2e9; color: var(--ok); } .veredicto.mal { background: #fbe7e5; color: var(--error); }
+    table { width: 100%; border-collapse: collapse; background: #fff; font-size: 14px; }
+    th, td { padding: 8px 10px; border: 1px solid var(--borde); text-align: left; }
+    th { background: #2b2b2b; color: #fff; }
+    td code { font: 13px Consolas, monospace; }
+    .comparacion { overflow-x: auto; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="contenedor">
+    <h1>Traductor de productos · dos orígenes → un contrato</h1>
+    <p class="sub">Cada origen se envía a <code>POST /api/v1/normalize/{origen}</code>. Si son equivalentes, el backend devuelve exactamente el mismo contrato común.</p>
+
+    <div class="origenes">
+      <section>
+        <h2>Origen A · Hoja de inventario (Excel)</h2>
+        <p class="detalle">Todo como texto, coma decimal y categoría por nombre.</p>
+        <textarea id="origenA" spellcheck="false" aria-label="JSON del origen A"></textarea>
+        <div class="estado" id="estadoA"></div>
+        <pre id="salidaA" hidden></pre>
+      </section>
+      <section>
+        <h2>Origen B · Proveedor externo (API)</h2>
+        <p class="detalle">Inglés, datos anidados, precio en centavos y categoría por código.</p>
+        <textarea id="origenB" spellcheck="false" aria-label="JSON del origen B"></textarea>
+        <div class="estado" id="estadoB"></div>
+        <pre id="salidaB" hidden></pre>
+      </section>
+    </div>
+
+    <div class="acciones">
+      <button class="principal" id="traducir">Traducir ambos</button>
+      <button data-ejemplo="valido">Cargar ejemplo válido</button>
+      <button data-ejemplo="errores">Cargar ejemplo con errores</button>
+    </div>
+
+    <div class="comparacion" id="comparacion" hidden>
+      <div class="veredicto" id="veredicto"></div>
+      <table>
+        <thead><tr><th>Campo del contrato</th><th>Desde A</th><th>Desde B</th><th>Tipo</th><th>¿Igual?</th></tr></thead>
+        <tbody id="filas"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const EJEMPLOS = {
+      valido: {
+        a: { nombre_producto: 'Parlante portátil', descripcion: 'Resistente al agua, 12 h de batería', precio: '35,50', existencias: '20', categoria: 'Electrónica' },
+        b: { product: { title: 'Parlante portátil', details: 'Resistente al agua, 12 h de batería', pricing: { amount_cents: 3550, currency: 'USD' }, inventory: { available: 20 }, category_code: 'ELEC' } },
+      },
+      errores: {
+        a: { nombre_producto: 'Parlante portátil', descripcion: '', precio: '35.50', existencias: '20', categoria: 'Electrónica' },
+        b: { product: { title: 'Parlante portátil', inventory: { available: 20 }, category_code: 'ELEC' } },
+      },
+    };
+
+    function cargar(nombre) {
+      $('origenA').value = JSON.stringify(EJEMPLOS[nombre].a, null, 2);
+      $('origenB').value = JSON.stringify(EJEMPLOS[nombre].b, null, 2);
+      for (const id of ['estadoA', 'estadoB']) $(id).textContent = '';
+      for (const id of ['salidaA', 'salidaB', 'comparacion']) $(id).hidden = true;
+    }
+
+    async function traducir(origen, texto) {
+      let entrada;
+      try {
+        entrada = JSON.parse(texto);
+      } catch {
+        return { ok: false, estado: 'JSON mal escrito', cuerpo: { message: 'El texto no es un JSON válido.' } };
+      }
+      const res = await fetch(`/api/v1/normalize/${origen}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(entrada),
+      });
+      return { ok: res.ok, estado: `HTTP ${res.status} ${res.statusText}`, cuerpo: await res.json() };
+    }
+
+    function mostrar(sufijo, resultado) {
+      $(`estado${sufijo}`).textContent = resultado.estado;
+      $(`estado${sufijo}`).className = `estado ${resultado.ok ? 'ok' : 'mal'}`;
+      $(`salida${sufijo}`).textContent = JSON.stringify(resultado.cuerpo, null, 2);
+      $(`salida${sufijo}`).hidden = false;
+    }
+
+    const tipo = (v) => (v === null ? 'null' : Number.isInteger(v) ? 'entero' : typeof v === 'number' ? 'número' : typeof v === 'string' ? 'texto' : typeof v);
+
+    function comparar(a, b) {
+      $('comparacion').hidden = false;
+      const veredicto = $('veredicto');
+      $('filas').replaceChildren();
+      if (!a.ok || !b.ok) {
+        veredicto.className = 'veredicto mal';
+        veredicto.textContent = '✘ Al menos un origen fue rechazado (422): revise los errores de cada campo.';
+        return;
+      }
+      const datosA = a.cuerpo.data, datosB = b.cuerpo.data;
+      const iguales = JSON.stringify(datosA) === JSON.stringify(datosB);
+      veredicto.className = `veredicto ${iguales ? 'ok' : 'mal'}`;
+      veredicto.textContent = iguales
+        ? '✔ Las dos salidas son idénticas: mismo contrato común, mismos valores y mismos tipos.'
+        : '✘ Las salidas difieren: las entradas no son equivalentes.';
+      for (const campo of Object.keys(datosA)) {
+        const fila = document.createElement('tr');
+        const igual = JSON.stringify(datosA[campo]) === JSON.stringify(datosB[campo]) && tipo(datosA[campo]) === tipo(datosB[campo]);
+        for (const [texto, esCodigo] of [[campo, true], [JSON.stringify(datosA[campo]), true], [JSON.stringify(datosB[campo]), true], [tipo(datosA[campo]), false], [igual ? '✔' : '✘', false]]) {
+          const celda = document.createElement('td');
+          if (esCodigo) { const c = document.createElement('code'); c.textContent = texto; celda.append(c); } else celda.textContent = texto;
+          fila.append(celda);
+        }
+        $('filas').append(fila);
+      }
+    }
+
+    $('traducir').addEventListener('click', async () => {
+      const [a, b] = await Promise.all([traducir('inventory', $('origenA').value), traducir('supplier', $('origenB').value)]);
+      mostrar('A', a);
+      mostrar('B', b);
+      comparar(a, b);
+    });
+    document.querySelectorAll('[data-ejemplo]').forEach((boton) => boton.addEventListener('click', () => cargar(boton.dataset.ejemplo)));
+    cargar('valido');
+  </script>
+</body>
+</html>
