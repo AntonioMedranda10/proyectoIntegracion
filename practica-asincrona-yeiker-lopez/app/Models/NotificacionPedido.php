@@ -59,6 +59,15 @@ class NotificacionPedido extends Model
         return $this->belongsTo(Pedido::class);
     }
 
+    /**
+     * Cada UPDATE exige el id Y el message_id: si la base se reinició mientras el
+     * consumidor procesaba (y el id se reutilizó), no se modifica la fila de otro mensaje.
+     */
+    protected function setKeysForSaveQuery($query)
+    {
+        return parent::setKeysForSaveQuery($query)->where('message_id', $this->getOriginal('message_id'));
+    }
+
     public static function registrar(MensajeNotificacion $mensaje, string $modo, CarbonInterface $recibidoEn): self
     {
         return self::create([

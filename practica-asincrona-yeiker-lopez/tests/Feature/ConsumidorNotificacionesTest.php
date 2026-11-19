@@ -8,6 +8,7 @@ use App\Mensajeria\ProcesadorNotificacion;
 use App\Mensajeria\PublicadorMensajes;
 use App\Models\NotificacionPedido;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use RuntimeException;
 use Tests\Dobles\PublicadorEnMemoria;
 use Tests\TestCase;
@@ -89,6 +90,18 @@ class ConsumidorNotificacionesTest extends TestCase
         $this->assertSame(Decision::Confirmar, $this->manejador()->manejar($cuerpo, reentregado: true));
 
         $this->assertSame(1, NotificacionPedido::sole()->intentos);
+    }
+
+    public function test_un_registro_viejo_no_modifica_la_fila_de_otro_mensaje(): void
+    {
+        $this->publicar(1001);
+        $viejo = NotificacionPedido::sole();
+
+        // Simula un reinicio de la base mientras el consumidor procesaba: el mismo id ahora es de otro mensaje.
+        NotificacionPedido::query()->update(['message_id' => (string) Str::uuid()]);
+        $viejo->marcarEnviada('an***@tienda.test');
+
+        $this->assertSame('en_cola', NotificacionPedido::sole()->estado);
     }
 
     public function test_cliente_sin_correo_es_error_permanente_y_va_a_la_cola_de_fallidas(): void

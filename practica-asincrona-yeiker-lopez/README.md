@@ -76,6 +76,7 @@ php artisan serve --host=127.0.0.1 --port=8000
 php artisan notificaciones:consumir
 ```
 
+- Para empezar de cero: detenga el consumidor (Ctrl+C), ejecute `php artisan migrate:fresh --seed` y, si quedaron mensajes, vacíe las colas desde el panel (**Purge Messages**).
 - Panel de RabbitMQ: <http://localhost:15672> (pestaña **Queues**: `notificaciones.pedidos` y `notificaciones.pedidos.fallidas`). También: `docker exec rabbitmq-practica-yeiker rabbitmqctl list_queues -p tienda name messages consumers`.
 - Registro del flujo: `storage/logs/mensajeria.log`.
 - Postman: importe [postman/Practica_Asincrona_Notificaciones.postman_collection.json](postman/Practica_Asincrona_Notificaciones.postman_collection.json) (12 peticiones con pruebas automáticas).
@@ -84,27 +85,27 @@ php artisan notificaciones:consumir
 
 | Escenario | Cómo se prueba | Resultado obtenido |
 |---|---|---|
-| Mensaje válido | Peticiones 1, 2 y 3 de Postman | 202 `en_cola`; el consumidor hace `ack`; estado `enviada`. |
+| Mensaje válido | Peticiones 1, 2 y 3 de Postman | 202 `en_cola`; el consumidor hace `ack`; estado `enviada` (petición 4). |
 | Consumidor detenido | Ctrl+C en el consumidor → petición 6 → `mensajeria:preparar` → reiniciar consumidor | La API responde 202; la cola muestra 1 mensaje en espera y 0 consumidores; al reanudar se procesa y la cola vuelve a 0. |
 | Mensaje inválido | Peticiones 8 y 9 | 422 con el detalle por campo; no se publica nada. |
 | Correlación | Petición 11 y `storage/logs/mensajeria.log` | El mismo `correlation_id` en la respuesta, el mensaje, el log del productor, el log del consumidor y la tabla de estados. |
 
-## Comparación síncrona / asíncrona (medido en este equipo)
+## Comparación síncrona / asíncrona (medido en este equipo, promedio de 5 peticiones)
 
 | Criterio | Síncrono (`/sincrono`) | Asíncrono (cola) |
 |---|---|---|
-| Tiempo de respuesta inicial | ≈ 2,5 s (200 cuando el envío ya terminó) | ≈ 0,45 s (202 al quedar en cola) |
-| Finalización del trabajo | La misma respuesta | El consumidor termina ≈ 2 s después (`demoraTotalMs`) |
+| Tiempo de respuesta inicial | ≈ 2,48 s (200 cuando el envío ya terminó) | ≈ 0,48 s (202 al quedar en cola) |
+| Finalización del trabajo | En la misma respuesta | El consumidor termina ≈ 2,12 s después de recibida la petición (`demoraTotalMs`) |
 | Dependencia del consumidor | No hay consumidor: la API hace todo | La API no lo necesita para responder |
 | Ante indisponibilidad | Si el proveedor falla, el cliente recibe el error | Consumidor caído: el mensaje espera en la cola. Broker caído: 503 |
 | Trazabilidad | Una sola petición | `correlation_id` en todos los pasos y tabla de estados |
 
-Unos 0,35 s de cada respuesta son el arranque de Laravel en el servidor de desarrollo de PHP en Windows (lo mismo tarda `GET /up`). La diferencia entre las dos versiones (≈ 2 s) es el trabajo que el modo asíncrono saca de la petición.
+Unos 0,32 s de cada respuesta son el arranque de Laravel en el servidor de desarrollo de PHP en Windows (lo mismo tarda `GET /up`). La diferencia entre las dos versiones (≈ 2 s) es el trabajo que el modo asíncrono saca de la petición.
 
 ## Pruebas automáticas
 
 ```bash
-php artisan test   # 19 pruebas: productor (10), consumidor (6) e integración con el RabbitMQ real (3)
+php artisan test   # 20 pruebas: productor (10), consumidor (7) e integración con el RabbitMQ real (3)
 ```
 
 Las de integración usan colas propias `*.pruebas` y se omiten solas si el broker no está encendido.
