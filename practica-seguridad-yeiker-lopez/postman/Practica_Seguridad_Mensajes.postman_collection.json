@@ -1,0 +1,723 @@
+{
+  "info": {
+    "name": "Práctica 2.4 – Seguridad de mensajes (Yeiker Lopez)",
+    "description": "Autenticación con Sanctum (token Bearer) y autorización por rol y propietario sobre /api/v1/messages.\n\nANTES DE EMPEZAR: en las variables de la colección escribe clave_admin y clave_cliente como \"Current value\" (las del .env local). No se guardan en el repositorio.\n\nOrden: los tres login, luego P1, P2, P3 y los extras. Para repetir desde cero: php artisan migrate:fresh --seed.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base",
+      "value": "http://127.0.0.1:8000/api/v1"
+    },
+    {
+      "key": "correo_admin",
+      "value": "admin@tienda.test"
+    },
+    {
+      "key": "correo_ana",
+      "value": "ana@tienda.test"
+    },
+    {
+      "key": "correo_luis",
+      "value": "luis@tienda.test"
+    },
+    {
+      "key": "clave_admin",
+      "value": ""
+    },
+    {
+      "key": "clave_cliente",
+      "value": ""
+    },
+    {
+      "key": "token_admin",
+      "value": ""
+    },
+    {
+      "key": "token_ana",
+      "value": ""
+    },
+    {
+      "key": "token_luis",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Iniciar sesión",
+      "item": [
+        {
+          "name": "Login Ana (cliente)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('token_ana', pm.response.json().access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "description": "Guarda el token en una variable de la colección. No captures esta respuesta: contiene el token.",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base}}/auth/login",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{correo_ana}}\",\n  \"password\": \"{{clave_cliente}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Login Luis (cliente)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('token_luis', pm.response.json().access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "description": "Guarda el token en una variable de la colección. No captures esta respuesta: contiene el token.",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base}}/auth/login",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{correo_luis}}\",\n  \"password\": \"{{clave_cliente}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Login Administrador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('token_admin', pm.response.json().access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "description": "Guarda el token en una variable de la colección. No captures esta respuesta: contiene el token.",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base}}/auth/login",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{correo_admin}}\",\n  \"password\": \"{{clave_admin}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "P1 – Acceso permitido (2xx)",
+      "item": [
+        {
+          "name": "P1a. Ana lista sus mensajes (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Solo recibe mensajes propios', () => pm.response.json().data.forEach((m) => pm.expect(m.author.name).to.eql('Ana Pérez')));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_ana}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base}}/messages",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "messages"
+              ]
+            }
+          }
+        },
+        {
+          "name": "P1b. Administrador lista todos (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Recibe mensajes de varios clientes', () => pm.expect(new Set(pm.response.json().data.map((m) => m.author.id)).size).to.be.above(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_admin}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base}}/messages",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "messages"
+              ]
+            }
+          }
+        },
+        {
+          "name": "P1c. Ana crea un mensaje (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('El autor es Ana, no el user_id enviado', () => pm.expect(pm.response.json().data.author.name).to.eql('Ana Pérez'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "description": "El cuerpo intenta asignar el mensaje a Luis (user_id 3), pero el autor siempre es el dueño del token.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_ana}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base}}/messages",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "messages"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subject\": \"Cambio de dirección\",\n  \"content\": \"Quiero cambiar la dirección de entrega de mi pedido #3.\",\n  \"user_id\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "P1d. Administrador elimina el mensaje 3 (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_admin}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base}}/messages/3",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "messages",
+                "3"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "P2 – Sin autenticación (401)",
+      "item": [
+        {
+          "name": "P2a. Sin token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('Explica el motivo', () => pm.expect(pm.response.json().message).to.eql(\"No autenticado: envía un token válido en la cabecera Authorization: Bearer.\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base}}/messages",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "messages"
+              ]
+            }
+          }
+        },
+        {
+          "name": "P2b. Token inventado (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('Explica el motivo', () => pm.expect(pm.response.json().message).to.eql(\"No autenticado: envía un token válido en la cabecera Authorization: Bearer.\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "5|token-inventado-por-un-atacante",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base}}/messages",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "messages"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "P3 – Autenticado sin permisos (403)",
+      "item": [
+        {
+          "name": "P3a. Luis consulta un mensaje de Ana (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 403 Forbidden', () => pm.response.to.have.status(403));",
+                  "pm.test('Explica el motivo', () => pm.expect(pm.response.json().message).to.eql(\"No puedes ver mensajes de otros clientes.\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_luis}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base}}/messages/1",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "messages",
+                "1"
+              ]
+            }
+          }
+        },
+        {
+          "name": "P3b. Ana intenta eliminar su mensaje (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 403 Forbidden', () => pm.response.to.have.status(403));",
+                  "pm.test('Explica el motivo', () => pm.expect(pm.response.json().message).to.eql(\"Solo un administrador puede eliminar mensajes.\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_ana}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base}}/messages/1",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "messages",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Extras",
+      "item": [
+        {
+          "name": "Cerrar sesión de Luis (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_luis}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base}}/auth/logout",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Token revocado (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 401 Unauthorized', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "description": "Usa el token de Luis después de cerrar su sesión.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_luis}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base}}/messages",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "messages"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Contraseña incorrecta (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Responde 401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "pm.test('Explica el motivo', () => pm.expect(pm.response.json().message).to.eql(\"Credenciales inválidas.\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base}}/auth/login",
+              "host": [
+                "{{base}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{correo_ana}}\",\n  \"password\": \"clave-equivocada\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
