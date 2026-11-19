@@ -1,0 +1,505 @@
+{
+  "info": {
+    "name": "Práctica 3.1 – Comunicación asíncrona (Yeiker Lopez)",
+    "description": "Notificación de pedidos con productor (API Laravel), cola (RabbitMQ) y consumidor (php artisan notificaciones:consumir).\n\nAntes de ejecutar: docker compose up -d, php artisan mensajeria:preparar, php artisan serve y, en otra terminal, php artisan notificaciones:consumir (ver README).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "api",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "messageId1001",
+      "value": ""
+    },
+    {
+      "key": "messageIdDetenido",
+      "value": ""
+    },
+    {
+      "key": "messageId1004",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Asíncrono – mensaje válido (pedido 1001)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 202 Accepted (recibido, todavía no procesado)', () => pm.response.to.have.status(202));",
+              "const r = pm.response.json();",
+              "pm.test('Estado en_cola y enlace para consultar', () => {",
+              "  pm.expect(r.estado).to.eql('en_cola');",
+              "  pm.expect(pm.response.headers.get('Location')).to.eql(r.consultarEstado);",
+              "});",
+              "pm.test('Preserva el correlation_id enviado', () => pm.expect(r.correlationId).to.eql('pedido-1001-confirmacion'));",
+              "pm.test('Devuelve el correlation_id en la cabecera', () => pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql(r.correlationId));",
+              "pm.collectionVariables.set('messageId1001', r.messageId);",
+              "console.log('Respuesta inicial asíncrona:', pm.response.responseTime, 'ms');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "description": "El productor valida, publica en la cola notificaciones.pedidos y responde 202 sin esperar el envío.",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Correlation-ID",
+            "value": "pedido-1001-confirmacion"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pedidoId\": 1001,\n  \"evento\": \"pedido_confirmado\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{api}}/api/v1/notificaciones/pedidos"
+      }
+    },
+    {
+      "name": "2. Asíncrono – mensaje válido (pedido 1002)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 202 Accepted (recibido, todavía no procesado)', () => pm.response.to.have.status(202));",
+              "const r = pm.response.json();",
+              "pm.test('Estado en_cola y enlace para consultar', () => {",
+              "  pm.expect(r.estado).to.eql('en_cola');",
+              "  pm.expect(pm.response.headers.get('Location')).to.eql(r.consultarEstado);",
+              "});",
+              "pm.test('Genera un correlation_id (UUID)', () => pm.expect(r.correlationId).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/));",
+              "pm.test('Devuelve el correlation_id en la cabecera', () => pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql(r.correlationId));",
+              "pm.collectionVariables.set('messageId1002', r.messageId);",
+              "console.log('Respuesta inicial asíncrona:', pm.response.responseTime, 'ms');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "description": "Sin cabecera X-Correlation-ID: la API genera uno.",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pedidoId\": 1002,\n  \"evento\": \"pedido_enviado\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{api}}/api/v1/notificaciones/pedidos"
+      }
+    },
+    {
+      "name": "3. Asíncrono – mensaje válido (pedido 1003)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 202 Accepted (recibido, todavía no procesado)', () => pm.response.to.have.status(202));",
+              "const r = pm.response.json();",
+              "pm.test('Estado en_cola y enlace para consultar', () => {",
+              "  pm.expect(r.estado).to.eql('en_cola');",
+              "  pm.expect(pm.response.headers.get('Location')).to.eql(r.consultarEstado);",
+              "});",
+              "pm.test('Genera un correlation_id (UUID)', () => pm.expect(r.correlationId).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/));",
+              "pm.test('Devuelve el correlation_id en la cabecera', () => pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql(r.correlationId));",
+              "pm.collectionVariables.set('messageId1003', r.messageId);",
+              "console.log('Respuesta inicial asíncrona:', pm.response.responseTime, 'ms');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "description": "",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pedidoId\": 1003,\n  \"evento\": \"pedido_entregado\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{api}}/api/v1/notificaciones/pedidos"
+      }
+    },
+    {
+      "name": "4. Estado del mensaje 1 (tabla de estados)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('Mismo correlation_id que la petición 1', () => pm.expect(pm.response.json().correlationId).to.eql('pedido-1001-confirmacion'));",
+              "pm.test('El consumidor lo procesó (enviada)', () => pm.expect(pm.response.json().estado).to.eql('enviada'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "description": "Envíela unos segundos después de la petición 1: el consumidor ya debe haberlo procesado (estado enviada).",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{api}}/api/v1/notificaciones/{{messageId1001}}"
+      }
+    },
+    {
+      "name": "5. Síncrono – mismo proceso (pedido 1001)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200 cuando el envío YA terminó', () => pm.response.to.have.status(200));",
+              "pm.test('Estado enviada, modo sincrono', () => {",
+              "  pm.expect(pm.response.json().estado).to.eql('enviada');",
+              "  pm.expect(pm.response.json().modo).to.eql('sincrono');",
+              "});",
+              "pm.test('El cliente esperó todo el procesamiento (más de 2 s)', () => pm.expect(pm.response.responseTime).to.be.above(2000));",
+              "console.log('Respuesta síncrona:', pm.response.responseTime, 'ms');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "description": "Versión síncrona para comparar: hace el envío dentro de la petición. El cliente espera unos 2 s.",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Correlation-ID",
+            "value": "sincrono-1001"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pedidoId\": 1001,\n  \"evento\": \"pedido_confirmado\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{api}}/api/v1/notificaciones/pedidos/sincrono"
+      }
+    },
+    {
+      "name": "6. Consumidor detenido – publicar (pedido 1002)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 202 Accepted (recibido, todavía no procesado)', () => pm.response.to.have.status(202));",
+              "const r = pm.response.json();",
+              "pm.test('Estado en_cola y enlace para consultar', () => {",
+              "  pm.expect(r.estado).to.eql('en_cola');",
+              "  pm.expect(pm.response.headers.get('Location')).to.eql(r.consultarEstado);",
+              "});",
+              "pm.test('Preserva el correlation_id enviado', () => pm.expect(r.correlationId).to.eql('pedido-1002-consumidor-detenido'));",
+              "pm.test('Devuelve el correlation_id en la cabecera', () => pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql(r.correlationId));",
+              "pm.collectionVariables.set('messageIdDetenido', r.messageId);",
+              "console.log('Respuesta inicial asíncrona:', pm.response.responseTime, 'ms');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "description": "ANTES de enviar: detenga el consumidor con Ctrl+C. La API responde 202 igual y el mensaje queda esperando en la cola.",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Correlation-ID",
+            "value": "pedido-1002-consumidor-detenido"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pedidoId\": 1002,\n  \"evento\": \"pedido_enviado\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{api}}/api/v1/notificaciones/pedidos"
+      }
+    },
+    {
+      "name": "7. Consumidor detenido – consultar estado",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('Estado en_cola (detenido) o enviada (reanudado)', () => pm.expect(pm.response.json().estado).to.be.oneOf(['en_cola', 'enviada']));",
+              "console.log('Estado actual:', pm.response.json().estado);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "description": "Envíela DOS veces: con el consumidor detenido (en_cola) y después de volver a iniciarlo (enviada).",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{api}}/api/v1/notificaciones/{{messageIdDetenido}}"
+      }
+    },
+    {
+      "name": "8. Mensaje inválido – datos incompletos (422)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 422 y no publica', () => pm.response.to.have.status(422));",
+              "pm.test('Indica qué campos fallaron', () => pm.expect(pm.response.json().errors).to.have.all.keys('pedidoId', 'evento'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "description": "",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"evento\": \"pedido_perdido\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{api}}/api/v1/notificaciones/pedidos"
+      }
+    },
+    {
+      "name": "9. Mensaje inválido – pedidoId como texto (422)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 422', () => pm.response.to.have.status(422));",
+              "pm.test('pedidoId debe ser número JSON', () => pm.expect(pm.response.json().errors.pedidoId[0]).to.include('número entero JSON'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "description": "",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pedidoId\": \"1001\",\n  \"evento\": \"pedido_confirmado\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{api}}/api/v1/notificaciones/pedidos"
+      }
+    },
+    {
+      "name": "10. Error en el consumidor – cliente sin correo (pedido 1004)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 202 Accepted (recibido, todavía no procesado)', () => pm.response.to.have.status(202));",
+              "const r = pm.response.json();",
+              "pm.test('Estado en_cola y enlace para consultar', () => {",
+              "  pm.expect(r.estado).to.eql('en_cola');",
+              "  pm.expect(pm.response.headers.get('Location')).to.eql(r.consultarEstado);",
+              "});",
+              "pm.test('Preserva el correlation_id enviado', () => pm.expect(r.correlationId).to.eql('pedido-1004-sin-correo'));",
+              "pm.test('Devuelve el correlation_id en la cabecera', () => pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql(r.correlationId));",
+              "pm.collectionVariables.set('messageId1004', r.messageId);",
+              "console.log('Respuesta inicial asíncrona:', pm.response.responseTime, 'ms');"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "description": "La API acepta (202); el consumidor no puede notificar, hace nack y RabbitMQ mueve el mensaje a notificaciones.pedidos.fallidas.",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Correlation-ID",
+            "value": "pedido-1004-sin-correo"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pedidoId\": 1004,\n  \"evento\": \"pedido_confirmado\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{api}}/api/v1/notificaciones/pedidos"
+      }
+    },
+    {
+      "name": "11. Correlación – registros de una operación",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('Todas las filas tienen el mismo correlation_id', () => pm.response.json().data.forEach(f => pm.expect(f.correlationId).to.eql('pedido-1001-confirmacion')));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "description": "",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{api}}/api/v1/notificaciones?correlationId=pedido-1001-confirmacion"
+      }
+    },
+    {
+      "name": "12. Tabla de estados completa",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "description": "",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{api}}/api/v1/notificaciones"
+      }
+    }
+  ]
+}

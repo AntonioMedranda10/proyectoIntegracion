@@ -1,0 +1,33 @@
+# Broker de mensajes de la práctica 3.1 (RabbitMQ con panel de administración).
+#
+#   docker compose up -d        -> inicia el broker
+#   docker compose ps           -> debe decir "healthy"
+#   docker compose stop         -> lo detiene sin borrar las colas
+#
+# El usuario y la clave se leen del archivo .env (que NO se sube al repositorio).
+# Los puertos solo se publican en 127.0.0.1: el broker no queda expuesto a la red.
+name: practica-asincrona-yeiker
+
+services:
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    container_name: rabbitmq-practica-yeiker
+    # RabbitMQ guarda sus datos según el nombre del host: se fija para no perderlos al recrear el contenedor.
+    hostname: rabbitmq-tienda
+    ports:
+      - "127.0.0.1:5672:5672"    # AMQP: lo usan el productor (API) y el consumidor
+      - "127.0.0.1:15672:15672"  # Panel web: http://localhost:15672
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?Define RABBITMQ_USER en el archivo .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Define RABBITMQ_PASSWORD en el archivo .env}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-tienda}
+    volumes:
+      - rabbitmq-datos:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+volumes:
+  rabbitmq-datos:
