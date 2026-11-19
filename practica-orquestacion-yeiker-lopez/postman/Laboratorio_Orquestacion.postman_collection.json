@@ -1,0 +1,308 @@
+{
+  "info": {
+    "name": "Laboratorio de orquestación (Yeiker Lopez)",
+    "description": "GET /api/resumen-solicitud/{id}: el orquestador (Laravel, puerto 8000) consulta los servicios de usuarios (8001) y de estados (8002) y compone una sola respuesta.\n\nAntes de ejecutar, inicia los tres procesos (ver README).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "orquestador",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "usuarios",
+      "value": "http://127.0.0.1:8001"
+    },
+    {
+      "key": "estados",
+      "value": "http://127.0.0.1:8002"
+    }
+  ],
+  "item": [
+    {
+      "name": "0a. Servicio de usuarios (directo)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "description": "",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{usuarios}}/usuarios/7"
+      }
+    },
+    {
+      "name": "0b. Servicio de estados (directo)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "description": "",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{estados}}/estados/101"
+      }
+    },
+    {
+      "name": "1. Flujo normal (200)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('Una sola respuesta compuesta', () => pm.expect(pm.response.json()).to.have.all.keys('solicitud_id', 'usuario', 'estado', 'correlation_id'));",
+              "pm.test('Propaga el correlation_id recibido', () => {",
+              "  pm.expect(pm.response.json().correlation_id).to.eql('clase-101');",
+              "  pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('clase-101');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "description": "",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Correlation-ID",
+            "value": "clase-101"
+          }
+        ],
+        "url": "{{orquestador}}/api/resumen-solicitud/101"
+      }
+    },
+    {
+      "name": "2. Sin X-Correlation-ID (se genera uno)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('Genera un UUID y lo devuelve en la cabecera', () => {",
+              "  const cid = pm.response.json().correlation_id;",
+              "  pm.expect(cid).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);",
+              "  pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql(cid);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "description": "",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{orquestador}}/api/resumen-solicitud/101"
+      }
+    },
+    {
+      "name": "3. Servicio de estados detenido (502)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 502 Bad Gateway', () => pm.response.to.have.status(502));",
+              "pm.test('Mensaje controlado, sin trazas', () => {",
+              "  pm.expect(pm.response.json()).to.have.all.keys('error', 'servicio', 'correlation_id');",
+              "  pm.expect(pm.response.text()).to.not.include('trace');",
+              "});",
+              "pm.test('Conserva el correlation_id', () => pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql(pm.response.json().correlation_id));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "description": "ANTES de enviar: detén el servicio de estados con Ctrl+C en su terminal. Después de la prueba, vuelve a iniciarlo.",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Correlation-ID",
+            "value": "clase-101"
+          }
+        ],
+        "url": "{{orquestador}}/api/resumen-solicitud/101"
+      }
+    },
+    {
+      "name": "4. Error HTTP del servicio (502) – solicitud 103",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 502 Bad Gateway', () => pm.response.to.have.status(502));",
+              "pm.test('Mensaje controlado, sin trazas', () => {",
+              "  pm.expect(pm.response.json()).to.have.all.keys('error', 'servicio', 'correlation_id');",
+              "  pm.expect(pm.response.text()).to.not.include('trace');",
+              "});",
+              "pm.test('Conserva el correlation_id', () => pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql(pm.response.json().correlation_id));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "description": "",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Correlation-ID",
+            "value": "clase-103"
+          }
+        ],
+        "url": "{{orquestador}}/api/resumen-solicitud/103"
+      }
+    },
+    {
+      "name": "5. Contenido inválido (502) – solicitud 104",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 502 Bad Gateway', () => pm.response.to.have.status(502));",
+              "pm.test('Mensaje controlado, sin trazas', () => {",
+              "  pm.expect(pm.response.json()).to.have.all.keys('error', 'servicio', 'correlation_id');",
+              "  pm.expect(pm.response.text()).to.not.include('trace');",
+              "});",
+              "pm.test('Conserva el correlation_id', () => pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql(pm.response.json().correlation_id));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "description": "",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Correlation-ID",
+            "value": "clase-104"
+          }
+        ],
+        "url": "{{orquestador}}/api/resumen-solicitud/104"
+      }
+    },
+    {
+      "name": "6. Solicitud inexistente (502) – solicitud 999",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 502 Bad Gateway', () => pm.response.to.have.status(502));",
+              "pm.test('Mensaje controlado, sin trazas', () => {",
+              "  pm.expect(pm.response.json()).to.have.all.keys('error', 'servicio', 'correlation_id');",
+              "  pm.expect(pm.response.text()).to.not.include('trace');",
+              "});",
+              "pm.test('Conserva el correlation_id', () => pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql(pm.response.json().correlation_id));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "description": "",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Correlation-ID",
+            "value": "clase-999"
+          }
+        ],
+        "url": "{{orquestador}}/api/resumen-solicitud/999"
+      }
+    },
+    {
+      "name": "7. Servicio lento: timeout de 3 s (502) – solicitud 102",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 502 Bad Gateway', () => pm.response.to.have.status(502));",
+              "pm.test('Mensaje controlado, sin trazas', () => {",
+              "  pm.expect(pm.response.json()).to.have.all.keys('error', 'servicio', 'correlation_id');",
+              "  pm.expect(pm.response.text()).to.not.include('trace');",
+              "});",
+              "pm.test('Conserva el correlation_id', () => pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql(pm.response.json().correlation_id));",
+              "pm.test('Corta en unos 3 s, no espera los 5 s', () => pm.expect(pm.response.responseTime).to.be.below(4500));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "description": "El servicio de estados tarda 5 s en la solicitud 102; el orquestador espera solo 3 s.",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Correlation-ID",
+            "value": "clase-102"
+          }
+        ],
+        "url": "{{orquestador}}/api/resumen-solicitud/102"
+      }
+    }
+  ]
+}
