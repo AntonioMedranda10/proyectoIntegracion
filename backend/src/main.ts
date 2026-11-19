@@ -7,6 +7,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import type { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app.module.js';
+import { correlationIdMiddleware } from './common/correlation-id.js';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -15,7 +16,12 @@ async function bootstrap() {
   const instance = config.get<string>('INSTANCE_NAME', `backend-${port}`);
 
   app.setGlobalPrefix('api');
-  app.enableCors();
+  // Los navegadores en otro origen también pueden leer estas cabeceras.
+  app.enableCors({
+    exposedHeaders: ['X-Backend-Instance', 'X-Correlation-ID'],
+  });
+  // X-Correlation-ID: conserva el que envía el cliente (L2) o genera uno; L3 lo reenvía a L5.
+  app.use(correlationIdMiddleware);
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

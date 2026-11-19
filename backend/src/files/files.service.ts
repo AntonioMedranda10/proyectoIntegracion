@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { access, writeFile } from 'node:fs/promises';
-import { extname, join, resolve } from 'node:path';
+import { access, unlink, writeFile } from 'node:fs/promises';
+import { basename, extname, join, resolve } from 'node:path';
 import {
   BadGatewayException,
   BadRequestException,
@@ -11,14 +11,20 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { CORRELATION_HEADER } from '../common/correlation-id.js';
 import { FileRecord } from './file-record.entity.js';
 
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 export const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
-interface StoredFile {
+export interface StoredFile {
   storageKey: string;
   url: string;
+}
+
+export interface FileOwner {
+  type: string;
+  id: number;
 }
 
 /**
@@ -32,6 +38,7 @@ export class FilesService {
   private readonly mode: 'local' | 'remote';
   private readonly filesUrl: string;
   private readonly uploadsDir: string;
+  private readonly timeoutMs: number;
 
   constructor(
     @InjectRepository(FileRecord)
@@ -44,32 +51,72 @@ export class FilesService {
       .get<string>('FILES_URL', 'http://192.168.10.15')
       .replace(/\/$/, '');
     this.uploadsDir = resolve(config.get<string>('UPLOADS_DIR', 'uploads'));
+    // Tiempo máximo de espera a L5 al subir un archivo.
+    this.timeoutMs = Number(config.get('FILES_TIMEOUT_MS', 10000));
   }
 
   async upload(
     file: Express.Multer.File | undefined,
-    owner: { type: string; id: number },
+    owner: FileOwner,
     uploadedBy: number,
   ) {
     if (!file)
       throw new BadRequestException(
         'Debes enviar un archivo en el campo "file"',
       );
-    const stored =
-      this.mode === 'remote'
-        ? await this.storeRemote(file)
-        : await this.storeLocal(file);
-    return this.files.save(
-      this.files.create({
-        ...stored,
-        originalName: file.originalname,
-        mimeType: file.mimetype,
-        size: file.size,
-        ownerType: owner.type,
-        ownerId: owner.id,
-        uploadedBy,
-      }),
-    );
+    const stored = await this.store(file);
+    return this.files.save(this.createRecord(stored, file, owner, uploadedBy));
+  }
+
+  /** Guarda el archivo en L5 (o en la carpeta local) sin tocar la base de datos. */
+  store(file: Express.Multer.File, correlationId?: string) {
+    return this.mode === 'remote'
+      ? this.storeRemote(file, correlationId)
+      : this.storeLocal(file);
+  }
+
+  /** Metadatos del archivo listos para guardarse (por ejemplo, dentro de una transacción). */
+  createRecord(
+    stored: StoredFile,
+    file: Express.Multer.File,
+    owner: FileOwner,
+    uploadedBy: number,
+  ) {
+    return this.files.create({
+      ...stored,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+      ownerType: owner.type,
+      ownerId: owner.id,
+      uploadedBy,
+    });
+  }
+
+  /**
+   * Borra un archivo ya guardado (compensación cuando L4 no pudo registrar el producto).
+   * Devuelve false si no se pudo: el archivo queda huérfano y se deja constancia en el log.
+   */
+  async remove(storageKey: string, correlationId?: string): Promise<boolean> {
+    try {
+      if (this.mode === 'local') {
+        await unlink(join(this.uploadsDir, basename(storageKey)));
+        return true;
+      }
+      const path = this.config.get<string>('FILES_DELETE_PATH', '/files');
+      const response = await fetch(
+        `${this.filesUrl}${path}/${encodeURIComponent(storageKey)}`,
+        {
+          method: 'DELETE',
+          headers: this.headersForL5(correlationId),
+          signal: AbortSignal.timeout(this.timeoutMs),
+        },
+      );
+      return response.ok;
+    } catch (error) {
+      this.logger.error(`No se pudo borrar ${storageKey} en L5: ${error}`);
+      return false;
+    }
   }
 
   /** Estado del almacenamiento de archivos para /health. */
@@ -98,19 +145,26 @@ export class FilesService {
     return { storageKey, url: `/files/${storageKey}` };
   }
 
-  private async storeRemote(file: Express.Multer.File): Promise<StoredFile> {
+  /** L5 exige una clave compartida (x-api-key) y recibe el X-Correlation-ID de la operación. */
+  private headersForL5(correlationId?: string) {
+    const apiKey = this.config.get<string>('FILES_API_KEY');
+    const headers: Record<string, string> = apiKey
+      ? { 'x-api-key': apiKey }
+      : {};
+    if (correlationId) headers[CORRELATION_HEADER] = correlationId;
+    return headers;
+  }
+
+  private async storeRemote(
+    file: Express.Multer.File,
+    correlationId?: string,
+  ): Promise<StoredFile> {
     const form = new FormData();
     form.append(
       'file',
       new Blob([Uint8Array.from(file.buffer)], { type: file.mimetype }),
       file.originalname,
     );
-
-    // L5 exige una clave compartida en la cabecera x-api-key (si está configurada).
-    const apiKey = this.config.get<string>('FILES_API_KEY');
-    const headers: Record<string, string> = apiKey
-      ? { 'x-api-key': apiKey }
-      : {};
 
     let response: Response;
     try {
@@ -119,16 +173,19 @@ export class FilesService {
         {
           method: 'POST',
           body: form,
-          headers,
-          signal: AbortSignal.timeout(10000),
+          headers: this.headersForL5(correlationId),
+          signal: AbortSignal.timeout(this.timeoutMs),
         },
       );
     } catch (error) {
+      const timeout = error instanceof Error && error.name === 'TimeoutError';
       this.logger.error(
         `No se pudo conectar con el servidor de archivos: ${error}`,
       );
       throw new ServiceUnavailableException(
-        'El servidor de archivos no está disponible',
+        timeout
+          ? `El servidor de archivos no respondió en ${this.timeoutMs / 1000} s`
+          : 'El servidor de archivos no está disponible',
       );
     }
     if (response.status === 401 || response.status === 403) {

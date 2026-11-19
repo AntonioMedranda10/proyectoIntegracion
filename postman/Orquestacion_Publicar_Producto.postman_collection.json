@@ -1,0 +1,305 @@
+{
+  "info": {
+    "name": "Proyecto 3.3 – Orquestación: publicar producto con imagen",
+    "description": "POST /api/products/publish: L3 orquesta L5 (imagen) y L4 (producto y metadatos).\nbaseUrl apunta a L1 (NGINX). En el entorno local (pruebas-locales/README.md) es http://127.0.0.1:8080/api; en el aula, http://<IP de L1>/api.\nEn las peticiones de publicar, elija una imagen en el campo \"file\" de la pestaña Body.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8080/api"
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Login administrador",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set('token', pm.response.json().access_token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@tienda.com\",\n  \"password\": \"Admin123!\"\n}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      }
+    },
+    {
+      "name": "1. Estado de L3, L4 y L5 (health)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+              "console.log('Instancia:', pm.response.json().instance, '| L4:', pm.response.json().database, '| L5:', pm.response.json().files);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/health"
+      }
+    },
+    {
+      "name": "2. Publicar – éxito (completed)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 201', () => pm.response.to.have.status(201));",
+              "pm.test('status completed e imagen guardada en L5', () => {",
+              "  pm.expect(pm.response.json().status).to.eql('completed');",
+              "  pm.expect(pm.response.json().image.status).to.eql('stored');",
+              "});",
+              "pm.test('Conserva el X-Correlation-ID', () => pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('publicar-webcam-001'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "description": "Todo encendido. L3 guarda la imagen en L5 y el producto con sus metadatos en L4.",
+        "header": [
+          {
+            "key": "X-Correlation-ID",
+            "value": "publicar-webcam-001"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "name",
+              "value": "Webcam Full HD",
+              "type": "text"
+            },
+            {
+              "key": "description",
+              "value": "1080p con micrófono incorporado",
+              "type": "text"
+            },
+            {
+              "key": "price",
+              "value": "45.9",
+              "type": "text"
+            },
+            {
+              "key": "stock",
+              "value": "12",
+              "type": "text"
+            },
+            {
+              "key": "categoryId",
+              "value": "1",
+              "type": "text"
+            },
+            {
+              "key": "file",
+              "type": "file",
+              "src": [],
+              "description": "Elija una imagen JPG, PNG o WEBP (máx. 5 MB)"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/products/publish"
+      }
+    },
+    {
+      "name": "3. Publicar – L5 caído (degraded)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 201 (el producto sí se publica)', () => pm.response.to.have.status(201));",
+              "pm.test('status degraded e imagen pendiente', () => {",
+              "  pm.expect(pm.response.json().status).to.eql('degraded');",
+              "  pm.expect(pm.response.json().image.status).to.eql('pending');",
+              "  pm.expect(pm.response.json().product.imageUrl).to.eql(null);",
+              "});",
+              "pm.test('Conserva el X-Correlation-ID', () => pm.expect(pm.response.headers.get('X-Correlation-ID')).to.eql('publicar-audifonos-002'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "description": "ANTES de enviar: apague L5 (Ctrl+C en su terminal). El producto se publica sin imagen y la imagen queda pendiente.",
+        "header": [
+          {
+            "key": "X-Correlation-ID",
+            "value": "publicar-audifonos-002"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "name",
+              "value": "Audífonos Bluetooth",
+              "type": "text"
+            },
+            {
+              "key": "description",
+              "value": "Inalámbricos, 20 h de batería",
+              "type": "text"
+            },
+            {
+              "key": "price",
+              "value": "59.9",
+              "type": "text"
+            },
+            {
+              "key": "stock",
+              "value": "8",
+              "type": "text"
+            },
+            {
+              "key": "categoryId",
+              "value": "1",
+              "type": "text"
+            },
+            {
+              "key": "file",
+              "type": "file",
+              "src": [],
+              "description": "Elija una imagen JPG, PNG o WEBP (máx. 5 MB)"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/products/publish"
+      }
+    },
+    {
+      "name": "4. Publicar – datos inválidos (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 400', () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "description": "Falta el precio: L3 responde 400 sin llamar a L5 ni a L4.",
+        "header": [
+          {
+            "key": "X-Correlation-ID",
+            "value": "publicar-invalido-003"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "name",
+              "value": "Teclado",
+              "type": "text"
+            },
+            {
+              "key": "stock",
+              "value": "5",
+              "type": "text"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/products/publish"
+      }
+    },
+    {
+      "name": "5. Publicar – sin token (401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 401', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "noauth"
+        },
+        "method": "POST",
+        "description": "",
+        "header": [
+          {
+            "key": "X-Correlation-ID",
+            "value": "publicar-sin-token-004"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "name",
+              "value": "Teclado",
+              "type": "text"
+            },
+            {
+              "key": "price",
+              "value": "25",
+              "type": "text"
+            },
+            {
+              "key": "stock",
+              "value": "5",
+              "type": "text"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/products/publish"
+      }
+    }
+  ]
+}

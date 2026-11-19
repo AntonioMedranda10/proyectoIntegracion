@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { catalogApi, productsApi } from '../api'
 import { errorMessage } from '../api/client'
 import AdminTabs from '../components/AdminTabs'
+import PublishFlow from '../components/PublishFlow'
+import { newCorrelationId } from '../utils/correlation'
 import { fileUrl, formatPrice, PLACEHOLDER_IMG } from '../utils/files'
 
 const EMPTY = { name: '', description: '', price: '', stock: '', categoryId: '' }
@@ -20,6 +22,10 @@ export default function AdminProductos() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [saving, setSaving] = useState(false)
+  // Resultado de la última publicación orquestada y la imagen que quedó pendiente (si L5 falló).
+  const [flow, setFlow] = useState(null)
+  const [pending, setPending] = useState(null)
+  const [retrying, setRetrying] = useState(false)
   const fileInput = useRef(null)
   const formRef = useRef(null)
 
@@ -108,19 +114,35 @@ export default function AdminProductos() {
     const description = form.description.trim()
     if (description || editing) body.description = description
     if (form.categoryId) body.categoryId = Number(form.categoryId)
+    setFlow(null)
+    setPending(null)
+
+    // Producto nuevo: una sola petición y L3 orquesta L5 (imagen) + L4 (producto y metadatos).
+    if (!editing) {
+      try {
+        const result = await productsApi.publish(body, file, newCorrelationId())
+        setFlow(result)
+        if (result.status === 'degraded') setPending({ product: result.product, file })
+        reset()
+        load()
+      } catch (err) {
+        // 503 de L3: trae los pasos y el correlation_id para mostrar qué falló y qué se compensó.
+        const data = err.response?.data
+        if (data?.steps) setFlow(data)
+        else setError(errorMessage(err))
+        load()
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
+
+    // Producto existente: se actualizan los datos y, si se eligió, se reemplaza la imagen.
     try {
-      const saved = editing
-        ? await productsApi.update(editing.id, body)
-        : await productsApi.create(body)
-      // La imagen se sube después, cuando el producto ya tiene id.
-      // El frontend se la manda al backend (L3) y es el backend quien la guarda en L5.
-      // Si la subida falla, el formulario queda editando ese producto para no duplicarlo al reintentar.
+      const saved = await productsApi.update(editing.id, body)
       setEditing(saved)
       if (file) await productsApi.uploadImage(saved.id, file)
-      setNotice(
-        `Se ${editing ? 'actualizó' : 'creó'} «${saved.name}»` +
-          (file ? ' y su imagen ya se ve en el catálogo.' : '.'),
-      )
+      setNotice(`Se actualizó «${saved.name}»` + (file ? ' y su imagen ya se ve en el catálogo.' : '.'))
       reset()
       load()
     } catch (err) {
@@ -128,6 +150,24 @@ export default function AdminProductos() {
       load()
     } finally {
       setSaving(false)
+    }
+  }
+
+  // Degradación: el producto ya existe; se vuelve a enviar a L5 la misma imagen que quedó pendiente.
+  const retryImage = async () => {
+    if (!pending) return
+    setRetrying(true)
+    setError('')
+    try {
+      await productsApi.uploadImage(pending.product.id, pending.file)
+      setFlow(null)
+      setPending(null)
+      setNotice(`La imagen de «${pending.product.name}» se subió y ya se ve en el catálogo.`)
+      load()
+    } catch (err) {
+      setError(`La imagen sigue pendiente: ${errorMessage(err)}`)
+    } finally {
+      setRetrying(false)
     }
   }
 
@@ -158,6 +198,17 @@ export default function AdminProductos() {
       <AdminTabs />
 
       <div aria-live="polite">
+        {flow && (
+          <PublishFlow
+            flow={flow}
+            onRetry={pending?.file ? retryImage : null}
+            retrying={retrying}
+            onClose={() => {
+              setFlow(null)
+              setPending(null)
+            }}
+          />
+        )}
         {notice && (
           <div className="alert alert-ok" role="status">
             {notice}
@@ -234,7 +285,7 @@ export default function AdminProductos() {
           <div className="row">
             <button className="btn btn-dark" style={{ flex: '1 1 160px' }} disabled={saving}>
               {saving && <span className="spinner" aria-hidden="true" />}
-              {saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear producto'}
+              {saving ? (editing ? 'Guardando…' : 'Publicando…') : editing ? 'Guardar cambios' : 'Publicar producto'}
             </button>
             {editing && (
               <button type="button" className="btn btn-outline" onClick={reset}>

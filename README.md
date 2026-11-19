@@ -3,7 +3,7 @@
 | Nodo | Componente | Responsable | Carpeta |
 |---|---|---|---|
 | L1 | NGINX / balanceador | — | *(pendiente)* |
-| L2 | Frontend React/Vite | — | [`frontend/`](frontend/) |
+| L2 | Frontend React/Vite | Yeiker Lopez | [`frontend/`](frontend/) |
 | L3 | Backend NestJS ×2 (puertos 3001/3002) | Antonio Medranda | [`backend/`](backend/) |
 | L4 | PostgreSQL | — | *(pendiente)* |
 | L5 | Servidor de archivos | — | *(pendiente)* |
@@ -13,6 +13,7 @@
 - [Plan Frontend + Contrato de API](Plan_Frontend_Contrato_API.md): roles, pantallas y endpoints acordados entre frontend y backend.
 - [README del backend](backend/README.md): cómo ejecutar L3 y la lista de pasos para la prueba.
 - [README del frontend](frontend/README.md): cómo ejecutar L2, configuración de NGINX_URL y pantallas.
+- [Orquestación: publicar producto con imagen](Orquestacion_Publicar_Producto.md): flujo L3 → L5 + L4 con degradación y compensación (Proyecto de Aula 3.3), y sus [pruebas locales](pruebas-locales/README.md).
 - [Schema de la base de datos](database/schema.sql): las 10 tablas en 6 schemas que crea el backend en PostgreSQL (referencia para L4).
 - [Permisos por schema](database/permisos.sql): qué schemas son privados y cuál es de lectura pública (lo ejecuta L4 como administrador).
 

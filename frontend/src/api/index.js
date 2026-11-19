@@ -46,6 +46,22 @@ export const productsApi = {
     form.append('file', file)
     return api.post(`/products/${id}/image`, form).then(data)
   },
+  // Publicar con imagen en UNA petición: L3 orquesta L5 (imagen) y L4 (producto).
+  // Responde { status: completed | degraded, product, image, steps, correlationId }.
+  publish: (body, file, correlationId) => {
+    const form = new FormData()
+    Object.entries(body).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') form.append(key, String(value))
+    })
+    if (file) form.append('file', file)
+    return api
+      .post('/products/publish', form, {
+        headers: { 'X-Correlation-ID': correlationId },
+        // L3 espera a L5 hasta FILES_TIMEOUT_MS antes de degradar: más margen que el resto.
+        timeout: 30000,
+      })
+      .then(data)
+  },
 }
 
 export const ordersApi = {

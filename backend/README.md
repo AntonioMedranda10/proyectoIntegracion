@@ -46,6 +46,8 @@ curl http://localhost:3002/api/health
 | `FILES_URL` | URL del servidor de archivos, ej. `http://192.168.10.15`. |
 | `FILES_UPLOAD_PATH` | Ruta de subida en L5 (por defecto `/upload`). |
 | `FILES_API_KEY` | Clave que L5 exige en la cabecera `x-api-key`. Vacía = no se envía. |
+| `FILES_TIMEOUT_MS` | Milisegundos que L3 espera a L5 al subir (por defecto 10000). Si se pasa, `POST /products/publish` publica sin imagen (`degraded`). |
+| `FILES_DELETE_PATH` | Ruta para borrar en L5 (por defecto `/files`): `DELETE {FILES_URL}/files/{clave}`, usada como compensación. |
 
 ## 5. Día de la prueba (checklist)
 
@@ -73,6 +75,8 @@ curl http://localhost:3002/api/health
 - `POST {FILES_URL}/upload` con `multipart/form-data`, campo **`file`** y cabecera **`x-api-key`** (valor de `FILES_API_KEY`).
 - Respuesta JSON: `{ "storage_key": "abc.png", "url": "/files/abc.png" }` (también acepta `key` o `filename`; si falta `url` se usa `/files/<clave>`).
 - L1 debe enrutar `/files/` hacia L5 para que el navegador vea las imágenes.
+- `DELETE {FILES_URL}/files/<clave>` con `x-api-key`: L3 lo usa para borrar una imagen si L4 falla al publicar el producto (compensación). Ver [`../Orquestacion_Publicar_Producto.md`](../Orquestacion_Publicar_Producto.md).
+- L3 envía la cabecera `X-Correlation-ID` en cada petición a L5, para seguir la operación en los logs.
 
 ## 7. Estructura
 

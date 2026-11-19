@@ -151,6 +151,12 @@ Cada producto trae además su categoría: `"categoryId": 1` y `"category": { "id
 ```
 → `201` con el producto creado.
 
+**👑 `POST /products/publish`** (orquestación: crea el producto y sube su imagen en una sola petición)
+- Tipo: `multipart/form-data` con `name`, `price`, `stock`, `description?`, `categoryId?` y `file?`.
+- Respuesta `201`: `{ status: "completed" | "degraded", product, image: { status, url, reason? }, steps, correlationId }`.
+- `degraded` = el servidor de archivos (L5) no respondió: el producto se publicó sin imagen. `503` = L4 no disponible: no se publicó nada.
+- Detalle completo en [`Orquestacion_Publicar_Producto.md`](Orquestacion_Publicar_Producto.md).
+
 **👑 `PATCH /products/:id`**: se envían solo los campos a cambiar. Devuelve el producto actualizado.
 
 **👑 `DELETE /products/:id`** → `200` `{ "deleted": true }`

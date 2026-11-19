@@ -14,3 +14,6 @@ uploads/
 ~$*
 Thumbs.db
 .DS_Store
+
+# Archivos que guarda el L5 simulado de las pruebas locales
+pruebas-locales/archivos-l5/
