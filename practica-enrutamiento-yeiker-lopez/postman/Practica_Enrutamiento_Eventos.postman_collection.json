@@ -1,0 +1,481 @@
+{
+  "info": {
+    "name": "Práctica 3.2 – Enrutamiento y filtrado (Yeiker Lopez)",
+    "description": "POST /api/v1/eventos: validación → Message Filter → Content-Based Router → cola de RabbitMQ del consumidor.\nAntes de ejecutar: docker compose up -d, php artisan mensajeria:preparar, php artisan serve y los tres consumidores (php artisan eventos:consumir facturacion | logistica | inventario), cada uno en su terminal.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "api",
+      "value": "http://127.0.0.1:8000/api/v1"
+    },
+    {
+      "key": "id_pago",
+      "value": ""
+    },
+    {
+      "key": "id_despacho",
+      "value": ""
+    },
+    {
+      "key": "id_cancelacion",
+      "value": ""
+    },
+    {
+      "key": "id_desconocido",
+      "value": ""
+    },
+    {
+      "key": "id_prueba",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Caso 1 – pago_aprobado → Facturación",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('id_pago', Number(String(Date.now()).slice(-8)));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 202 Accepted', () => pm.response.to.have.status(202));",
+              "pm.test('Decisión: enrutado', () => pm.expect(pm.response.json().decision).to.eql('enrutado'));",
+              "pm.test('Regla R1 → cola tienda.facturacion', () => {",
+              "  pm.expect(pm.response.json().regla).to.eql('R1');",
+              "  pm.expect(pm.response.json().cola).to.eql('tienda.facturacion');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "description": "Debe aparecer SOLO en la terminal del consumidor de facturación.",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Correlation-ID",
+            "value": "pedido-1001-pago"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": {{id_pago}},\n  \"tipo\": \"pago_aprobado\",\n  \"prioridad\": \"alta\",\n  \"datos\": {\n    \"pedido_id\": 1001,\n    \"monto\": 45.9,\n    \"metodo\": \"tarjeta\",\n    \"modo\": \"real\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{api}}/eventos"
+      }
+    },
+    {
+      "name": "Caso 2 – pedido_despachado → Logística",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('id_despacho', Number(String(Date.now()).slice(-8)));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 202 Accepted', () => pm.response.to.have.status(202));",
+              "pm.test('Decisión: enrutado', () => pm.expect(pm.response.json().decision).to.eql('enrutado'));",
+              "pm.test('Regla R2 → cola tienda.logistica', () => {",
+              "  pm.expect(pm.response.json().regla).to.eql('R2');",
+              "  pm.expect(pm.response.json().cola).to.eql('tienda.logistica');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "description": "Debe aparecer SOLO en la terminal del consumidor de logística.",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Correlation-ID",
+            "value": "pedido-1002-despacho"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": {{id_despacho}},\n  \"tipo\": \"pedido_despachado\",\n  \"prioridad\": \"normal\",\n  \"datos\": {\n    \"pedido_id\": 1002,\n    \"transportista\": \"Servientrega\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{api}}/eventos"
+      }
+    },
+    {
+      "name": "Caso 3 – pedido_cancelado → Inventario",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('id_cancelacion', Number(String(Date.now()).slice(-8)));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 202 Accepted', () => pm.response.to.have.status(202));",
+              "pm.test('Decisión: enrutado', () => pm.expect(pm.response.json().decision).to.eql('enrutado'));",
+              "pm.test('Regla R3 → cola tienda.inventario', () => {",
+              "  pm.expect(pm.response.json().regla).to.eql('R3');",
+              "  pm.expect(pm.response.json().cola).to.eql('tienda.inventario');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "description": "Debe aparecer SOLO en la terminal del consumidor de inventario.",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Correlation-ID",
+            "value": "pedido-1003-cancelacion"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": {{id_cancelacion}},\n  \"tipo\": \"pedido_cancelado\",\n  \"prioridad\": \"alta\",\n  \"datos\": {\n    \"pedido_id\": 1003,\n    \"motivo\": \"El cliente desistió de la compra\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{api}}/eventos"
+      }
+    },
+    {
+      "name": "Caso 4 – tipo desconocido → no_enrutables",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('id_desconocido', Number(String(Date.now()).slice(-8)));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 202 Accepted', () => pm.response.to.have.status(202));",
+              "pm.test('Decisión no_enrutable, regla R4, cola de revisión', () => {",
+              "  pm.expect(pm.response.json().decision).to.eql('no_enrutable');",
+              "  pm.expect(pm.response.json().regla).to.eql('R4');",
+              "  pm.expect(pm.response.json().cola).to.eql('tienda.no_enrutables');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "description": "Ningún consumidor lo recibe: queda en la cola tienda.no_enrutables para revisión (php artisan eventos:no-enrutables).",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Correlation-ID",
+            "value": "pedido-1002-devolucion"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": {{id_desconocido}},\n  \"tipo\": \"devolucion_solicitada\",\n  \"prioridad\": \"normal\",\n  \"datos\": {\n    \"pedido_id\": 1002,\n    \"comentario\": \"El mouse llegó con falla\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{api}}/eventos"
+      }
+    },
+    {
+      "name": "Caso 5 – no cumple el filtro (modo prueba)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('id_prueba', Number(String(Date.now()).slice(-8)));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200 (rechazo de negocio, no error)', () => pm.response.to.have.status(200));",
+              "pm.test('Decisión filtrado por la regla F1', () => {",
+              "  pm.expect(pm.response.json().decision).to.eql('filtrado');",
+              "  pm.expect(pm.response.json().regla).to.eql('F1');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "description": "Regla F1: la pasarela en modo prueba no debe generar comprobantes. No llega a Facturación.",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Correlation-ID",
+            "value": "pedido-1004-pago-prueba"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": {{id_prueba}},\n  \"tipo\": \"pago_aprobado\",\n  \"prioridad\": \"alta\",\n  \"datos\": {\n    \"pedido_id\": 1004,\n    \"monto\": 19.9,\n    \"metodo\": \"tarjeta\",\n    \"modo\": \"prueba\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{api}}/eventos"
+      }
+    },
+    {
+      "name": "Caso 5b – evento duplicado (mismo id del caso 1)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('Decisión filtrado por la regla F2', () => pm.expect(pm.response.json().regla).to.eql('F2'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "description": "Envíelo después del caso 1: reutiliza su id. Regla F2: no se factura dos veces.",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Correlation-ID",
+            "value": "pedido-1001-pago-reintento"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": {{id_pago}},\n  \"tipo\": \"pago_aprobado\",\n  \"prioridad\": \"alta\",\n  \"datos\": {\n    \"pedido_id\": 1001,\n    \"monto\": 45.9,\n    \"metodo\": \"tarjeta\",\n    \"modo\": \"real\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{api}}/eventos"
+      }
+    },
+    {
+      "name": "Caso 6 – falta un campo obligatorio (422)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 422', () => pm.response.to.have.status(422));",
+              "pm.test('Indica los campos que faltan', () => pm.expect(Object.keys(pm.response.json().errors)).to.eql(['prioridad', 'datos.monto']));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "description": "Sin prioridad ni datos.monto: la validación lo rechaza antes del filtro y del enrutador.",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Correlation-ID",
+            "value": "pedido-1001-incompleto"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": 999,\n  \"tipo\": \"pago_aprobado\",\n  \"datos\": {\n    \"pedido_id\": 1001\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{api}}/eventos"
+      }
+    },
+    {
+      "name": "Recorrido del evento del caso 1",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('Primero enrutado; el reintento, filtrado', () => {",
+              "  const d = pm.response.json().data;",
+              "  pm.expect(d[0].decision).to.eql('enrutado');",
+              "  pm.expect(d[d.length - 1].decision).to.eql('filtrado');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{api}}/eventos/{{id_pago}}"
+      }
+    },
+    {
+      "name": "Recorrido de todos los eventos",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{api}}/eventos"
+      }
+    },
+    {
+      "name": "Tabla de reglas (filtro y enrutador)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('2 reglas de filtro y 4 de enrutamiento', () => {",
+              "  pm.expect(pm.response.json().filtro.length).to.eql(2);",
+              "  pm.expect(pm.response.json().enrutador.length).to.eql(4);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{api}}/reglas"
+      }
+    }
+  ]
+}
